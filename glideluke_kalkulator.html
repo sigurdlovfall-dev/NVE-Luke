@@ -496,6 +496,7 @@
         <button class="tab-btn" onclick="showTab('trace')">🧮 Beregningsspor</button>
         <button class="tab-btn" onclick="showTab('figure')">📐 Figur</button>
         <button class="tab-btn" onclick="showTab('check')">✅ Kontroll</button>
+        <button class="tab-btn" onclick="showTab('rapport')" style="margin-left:auto;color:#1a3a5c;font-weight:800;">📄 Rapport</button>
       </div>
 
       <!-- TAB: RESULTS -->
@@ -535,6 +536,31 @@
 
         <div class="section-title" style="margin-top:16px;">Advarsler og spesielle hensyn</div>
         <div id="warningsContent"></div>
+      </div>
+
+      <!-- TAB: RAPPORT -->
+      <div id="tab-rapport" class="tab-content">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">Prosjektnavn</div>
+            <input type="text" id="rpt-prosjekt" placeholder="F.eks. Reguleringsdam Glomma" style="width:260px;">
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">Utarbeidet av</div>
+            <input type="text" id="rpt-autor" placeholder="Navn / firma">
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">Dok.nr.</div>
+            <input type="text" id="rpt-dokref" placeholder="F.eks. STA-2025-001" style="width:140px;">
+          </div>
+          <div style="margin-left:auto;display:flex;gap:8px;">
+            <button onclick="exportWord()" style="background:#1a3a5c;color:white;border:none;border-radius:5px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;">⬇ Last ned Word (.doc)</button>
+            <button onclick="previewReport()" style="background:#e2e8f0;color:#334155;border:none;border-radius:5px;padding:9px 14px;font-size:13px;cursor:pointer;">👁 Forhåndsvis</button>
+          </div>
+        </div>
+        <div id="reportPreview" style="border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;padding:16px;min-height:200px;">
+          <p style="color:#94a3b8;font-size:12px;text-align:center;margin-top:40px;">Klikk «Forhåndsvis» for å se rapporten, eller «Last ned Word» for å eksportere direkte.</p>
+        </div>
       </div>
 
     </div><!-- /panel -->
@@ -1461,6 +1487,372 @@ function showTab(name) {
 //  INITIAL CALCULATION
 // ═══════════════════════════════════════════════════════
 onInputChange();
+
+// ═══════════════════════════════════════════════════════
+//  RAPPORT – Word-eksport
+// ═══════════════════════════════════════════════════════
+
+function buildReportHTML(embed) {
+  // embed=true: inline base64 figure for Word; false: for preview
+  const s = state;
+  const r = results;
+  const now = new Date();
+  const dato = now.toLocaleDateString('nb-NO', {day:'2-digit',month:'2-digit',year:'numeric'});
+  const prosjekt = document.getElementById('rpt-prosjekt').value || '(ikke angitt)';
+  const autor    = document.getElementById('rpt-autor').value    || '(ikke angitt)';
+  const dokref   = document.getElementById('rpt-dokref').value   || '–';
+
+  const funksjonLabel = {tappe:'Tappeluke / stengeorgan', flom:'Flomluke', inntak:'Inntaksluke'}[s.funksjon];
+  const driftLabel    = {stengt:'Stengt – fullt hydrostatisk trykk', apning:'Åpning – trykk-belastet', mellom:'Mellomstilling – regulering'}[s.driftstilstand];
+  const glideLabel    = {bronse:'Bronse mot rustfritt stål (μ = 0,60)', polymer:'Polymer/polyamid mot rustfritt stål (μ = 0,40)', spesial:'Spesialglidelager (μ = 0,15)'}[s.glideliste];
+  const grensetLabel  = {brudd:'Bruddgrensetilstand (ULS)', ulykke:'Ulykkesgrensetilstand (ALS)', bruks:'Bruksgrensetilstand (SLS)'}[s.grensetilstand];
+
+  // Capture figure as base64
+  let figImg = '';
+  try {
+    renderFigure();
+    const canvas = document.getElementById('lukeCanvas');
+    figImg = canvas.toDataURL('image/png');
+  } catch(e) {}
+
+  const warningRows = warnings.length > 0
+    ? warnings.map(w=>`<tr><td style="color:#92400e;padding:4px 8px;">⚠ ${w}</td></tr>`).join('')
+    : '<tr><td style="color:#166534;padding:4px 8px;">✓ Ingen advarsler</td></tr>';
+
+  return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<title>Beregningsrapport – Glideluke</title>
+<!--[if gte mso 9]>
+<xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml>
+<![endif]-->
+<style>
+  @page { size: A4; margin: 2.5cm 2.5cm 2.5cm 2.5cm; }
+  body  { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #1e293b; line-height: 1.5; }
+  h1    { font-size: 18pt; color: #1a3a5c; border-bottom: 3px solid #1a3a5c; padding-bottom: 6pt; margin-top: 0; }
+  h2    { font-size: 13pt; color: #1a3a5c; border-bottom: 1pt solid #94a3b8; padding-bottom: 3pt; margin-top: 18pt; }
+  h3    { font-size: 11pt; color: #334155; margin-top: 12pt; margin-bottom: 4pt; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 10pt; font-size: 10.5pt; }
+  th    { background: #1a3a5c; color: white; padding: 5pt 8pt; text-align: left; font-weight: bold; }
+  td    { padding: 4pt 8pt; border-bottom: 0.5pt solid #e2e8f0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .val  { font-family: Consolas, monospace; font-weight: bold; color: #1a3a5c; }
+  .formula { font-family: Consolas, monospace; font-size: 10pt; color: #2563a8; }
+  .ref  { font-size: 9.5pt; color: #64748b; }
+  .highlight { background: #dbeafe !important; }
+  .warn { background: #fef3c7 !important; color: #92400e; }
+  .ok   { background: #dcfce7 !important; color: #166534; }
+  .meta-table td { border: none; padding: 2pt 8pt; }
+  .meta-table td:first-child { color: #64748b; width: 140pt; }
+  .meta-table td:last-child  { font-weight: bold; }
+  .note { background: #f0f4f8; border-left: 3pt solid #2563a8; padding: 8pt 10pt; font-size: 10pt; margin: 10pt 0; }
+  .figure-box { text-align: center; margin: 16pt 0; }
+  .figure-box img { max-width: 100%; border: 1pt solid #e2e8f0; }
+  .figure-box figcaption { font-size: 9pt; color: #64748b; margin-top: 4pt; font-style: italic; }
+  .page-break { page-break-before: always; }
+  .footer-line { border-top: 1pt solid #e2e8f0; margin-top: 20pt; padding-top: 6pt; font-size: 9pt; color: #94a3b8; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     FORSIDE / HEADER
+══════════════════════════════════════════════════ -->
+<h1>Beregningsrapport – Glideluke (tappe- og stengeorgan)</h1>
+
+<table class="meta-table">
+  <tr><td>Prosjekt:</td>      <td>${prosjekt}</td></tr>
+  <tr><td>Utarbeidet av:</td> <td>${autor}</td></tr>
+  <tr><td>Dokumentnr.:</td>   <td>${dokref}</td></tr>
+  <tr><td>Dato:</td>          <td>${dato}</td></tr>
+  <tr><td>Beregningsgrunnlag:</td><td>NVE Retningslinjer 1/2011 – Stenge- og tappeorganer, ror og tverrslagsporter</td></tr>
+  <tr><td>Beregningsverktøy:</td><td>Glideluke-kalkulator v1.0 (HTML/JS, NVE 1/2011)</td></tr>
+</table>
+
+<div class="note">
+  <strong>Formål:</strong> Beregning av hydrostatiske krefter, resultant og angrepspunkt, dimensjonerende laster samt
+  manøvreringskrefter for rektangulær glideluke brukt som tappe- og/eller stengeorgan.
+  Beregningene er utført i henhold til NVE Retningslinjer 1/2011.
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     1. INNDATA
+══════════════════════════════════════════════════ -->
+<h2>1. Inndata og forutsetninger</h2>
+
+<h3>1.1 Lukegeometri</h3>
+<table>
+  <tr><th>Parameter</th><th>Symbol</th><th>Verdi</th><th>Enhet</th></tr>
+  <tr><td>Lukebredde</td>               <td class="formula">B</td>    <td class="val">${s.B}</td>    <td>m</td></tr>
+  <tr><td>Lukehøyde</td>                <td class="formula">H_L</td>  <td class="val">${s.H_L}</td>  <td>m</td></tr>
+  <tr><td>Underkant luke (over bunn)</td><td class="formula">z_UK</td><td class="val">${s.z_UK}</td> <td>m</td></tr>
+  <tr><td>Lukeareal</td>                <td class="formula">A</td>    <td class="val">${r.area.toFixed(3)}</td><td>m²</td></tr>
+</table>
+
+<h3>1.2 Vannstander</h3>
+<table>
+  <tr><th>Parameter</th><th>Symbol</th><th>Verdi</th><th>Enhet</th><th>Merknad</th></tr>
+  <tr><td>Oppstrøms vannstand</td><td class="formula">h₁</td><td class="val">${s.h1}</td><td>m</td><td>HRV (høyeste regulerte vannstand)</td></tr>
+  <tr><td>Nedstrøms vannstand</td><td class="formula">h₂</td><td class="val">${s.h2}</td><td>m</td><td>${s.h2 === 0 ? 'Tørt nedstrøms' : 'Nedstrøms mottrykk'}</td></tr>
+  <tr><td>Netto trykkhøyde</td>  <td class="formula">Δh</td><td class="val">${(s.h1-s.h2).toFixed(2)}</td><td>m</td><td></td></tr>
+</table>
+
+<h3>1.3 Driftsparametere</h3>
+<table>
+  <tr><th>Parameter</th><th>Valg</th></tr>
+  <tr><td>Lukefunksjon</td>       <td>${funksjonLabel}</td></tr>
+  <tr><td>Driftstilstand</td>     <td>${driftLabel}</td></tr>
+  <tr><td>Konsekvensklasse</td>   <td>Klasse ${s.konsekvensklasse} (jf. damsikkerhetsforskriften § 4-1)</td></tr>
+  <tr><td>Grensetilstand</td>     <td>${grensetLabel}</td></tr>
+</table>
+
+<h3>1.4 Material- og friksjonsparametere</h3>
+<table>
+  <tr><th>Parameter</th><th>Symbol</th><th>Verdi</th><th>Enhet</th><th>Referanse</th></tr>
+  <tr><td>Stålkvalitet (flytegrense)</td><td class="formula">R_e</td><td class="val">${s.Re}</td><td>MPa</td><td>NS-EN 10025</td></tr>
+  <tr><td>Glidelisttype</td>            <td class="formula">–</td>  <td>${glideLabel}</td><td>–</td><td>NVE 1/2011 Tabell 5.1</td></tr>
+  <tr><td>Friksjonsfaktor (minimum)</td><td class="formula">μ</td>  <td class="val">${r.mu}</td><td>–</td><td>NVE 1/2011 §5.2</td></tr>
+  <tr><td>Egenvekt lukekonstruksjon</td><td class="formula">G</td>  <td class="val">${s.G}</td><td>kN</td><td></td></tr>
+</table>
+
+<!-- ══════════════════════════════════════════════════
+     2. BEREGNING
+══════════════════════════════════════════════════ -->
+<h2>2. Beregninger</h2>
+
+<h3>2.1 Trykkfordeling</h3>
+<p>Vanntrykket beregnes som hydrostatisk trykk (lineær trykkfordeling). Netto trykkfordeling er differansen mellom oppstrøms og nedstrøms trykk.</p>
+<table>
+  <tr><th>Størrelse</th><th>Formel</th><th>Resultat</th><th>Enhet</th><th>Referanse</th></tr>
+  <tr><td>Vannvekt γ_w</td>
+      <td class="formula">γ_w = ρ · g</td>
+      <td class="val">${r.GAMMA_W.toFixed(2)}</td><td>kN/m³</td><td></td></tr>
+  <tr><td>Trykk ved underkant (oppstr.)</td>
+      <td class="formula">p_UK,1 = γ_w · h₁</td>
+      <td class="val">${r.p_UK1.toFixed(3)}</td><td>kN/m²</td><td>NVE §2.2</td></tr>
+  <tr><td>Trykk ved overkant (oppstr.)</td>
+      <td class="formula">p_OK,1 = γ_w · max(h₁ – H_L, 0)</td>
+      <td class="val">${r.p_OK1.toFixed(3)}</td><td>kN/m²</td><td>NVE §2.2</td></tr>
+  <tr><td>Trykk ved underkant (nedstr.)</td>
+      <td class="formula">p_UK,2 = γ_w · h₂</td>
+      <td class="val">${r.p_UK2.toFixed(3)}</td><td>kN/m²</td><td>NVE §2.2</td></tr>
+  <tr><td>Trykk ved overkant (nedstr.)</td>
+      <td class="formula">p_OK,2 = γ_w · max(h₂ – H_L, 0)</td>
+      <td class="val">${r.p_OK2.toFixed(3)}</td><td>kN/m²</td><td>NVE §2.2</td></tr>
+  <tr class="highlight"><td>Netto trykk ved underkant</td>
+      <td class="formula">p_net,UK = p_UK,1 – p_UK,2</td>
+      <td class="val">${r.p_net_UK.toFixed(3)}</td><td>kN/m²</td><td></td></tr>
+  <tr class="highlight"><td>Netto trykk ved overkant</td>
+      <td class="formula">p_net,OK = p_OK,1 – p_OK,2</td>
+      <td class="val">${r.p_net_OK.toFixed(3)}</td><td>kN/m²</td><td></td></tr>
+</table>
+
+<h3>2.2 Hydrostatisk resultantkraft og angrepspunkt</h3>
+<p>For en trapesfordelt last (lineær variasjon fra p_net,UK ved underkant til p_net,OK ved overkant) gjelder:</p>
+<table>
+  <tr><th>Størrelse</th><th>Formel</th><th>Resultat</th><th>Enhet</th><th>Referanse</th></tr>
+  <tr class="highlight"><td><strong>Hydrostatisk resultantkraft</strong></td>
+      <td class="formula">F_hyd = [(p_net,UK + p_net,OK) / 2] · B · H_L</td>
+      <td class="val">${r.F_hyd.toFixed(3)}</td><td>kN</td><td>Hydrostatikk</td></tr>
+  <tr><td>Middeltrykk</td>
+      <td class="formula">p_avg = F_hyd / (B · H_L)</td>
+      <td class="val">${r.p_avg.toFixed(3)}</td><td>kN/m²</td><td></td></tr>
+  <tr class="highlight"><td><strong>Angrepspunkt over underkant</strong></td>
+      <td class="formula">e = H_L · (2·p_net,OK + p_net,UK) / [3·(p_net,UK + p_net,OK)]</td>
+      <td class="val">${r.e_kp.toFixed(4)}</td><td>m</td><td>Trapesformel</td></tr>
+  <tr><td>Angrepspunkt (absolutt kote)</td>
+      <td class="formula">z_e = z_UK + e</td>
+      <td class="val">${r.e_abs.toFixed(4)}</td><td>m</td><td></td></tr>
+  <tr><td>Moment om underkant luke</td>
+      <td class="formula">M_hyd = F_hyd · e</td>
+      <td class="val">${r.M_hyd.toFixed(3)}</td><td>kN·m</td><td></td></tr>
+</table>
+
+<h3>2.3 Dimensjonerende laster</h3>
+<p>
+  Lastfaktor fastsettes i henhold til NVE Retningslinjer 1/2011 Tabell 2.1 og § 2.5.
+  ${s.funksjon === 'tappe' ? '<strong>Spesialregel §2.5:</strong> For tappe- og flomorganer benyttes lastfaktor γ_f = 1,4 i bruddgrensetilstand.' : ''}
+</p>
+<table>
+  <tr><th>Størrelse</th><th>Formel</th><th>Resultat</th><th>Enhet</th><th>Referanse</th></tr>
+  <tr><td>Lastfaktor</td>
+      <td class="formula">γ_f = ${r.gamma_f} ${s.funksjon==='tappe'?'(tappeluke, NVE §2.5)':'(NVE Tabell 2.1)'}</td>
+      <td class="val">${r.gamma_f.toFixed(1)}</td><td>–</td><td>NVE 1/2011 §2.5, Tab. 2.1</td></tr>
+  <tr class="highlight"><td><strong>Dimensjonerende kraft</strong></td>
+      <td class="formula">F_dim = γ_f · F_hyd</td>
+      <td class="val">${r.F_dim.toFixed(3)}</td><td>kN</td><td>NVE 1/2011 §2.5</td></tr>
+  <tr><td>Dimensjonerende moment</td>
+      <td class="formula">M_dim = γ_f · M_hyd</td>
+      <td class="val">${r.M_dim.toFixed(3)}</td><td>kN·m</td><td></td></tr>
+</table>
+
+<h3>2.4 Manøvreringskrefter</h3>
+<table>
+  <tr><th>Størrelse</th><th>Formel</th><th>Resultat</th><th>Enhet</th><th>Referanse</th></tr>
+  <tr><td>Friksjonsfaktor (minimum)</td>
+      <td class="formula">μ = ${r.mu} (${s.glideliste})</td>
+      <td class="val">${r.mu}</td><td>–</td><td>NVE 1/2011 Tabell 5.1</td></tr>
+  <tr><td>Friksjonskraft</td>
+      <td class="formula">F_frict = μ · F_hyd</td>
+      <td class="val">${r.F_frict.toFixed(3)}</td><td>kN</td><td>NVE 1/2011 §5.2</td></tr>
+  <tr><td>Egenvekt</td>
+      <td class="formula">G</td>
+      <td class="val">${s.G.toFixed(1)}</td><td>kN</td><td></td></tr>
+  <tr class="highlight"><td><strong>Nødvendig løftekraft</strong></td>
+      <td class="formula">F_lift = G + F_frict</td>
+      <td class="val">${r.F_lift.toFixed(3)}</td><td>kN</td><td>NVE 1/2011 §5.2</td></tr>
+  <tr><td>Paslagsfaktor</td>
+      <td class="formula">ψ = ${r.psi} (${funksjonLabel})</td>
+      <td class="val">${r.psi}</td><td>–</td><td>NVE 1/2011 §5.2</td></tr>
+  <tr class="highlight"><td><strong>Nødvendig aktuatorkapasitet</strong></td>
+      <td class="formula">F_akt = ψ · F_lift</td>
+      <td class="val">${r.F_actuator.toFixed(3)}</td><td>kN</td><td>NVE 1/2011 §5.2</td></tr>
+  <tr><td>Senkekraft (netto)</td>
+      <td class="formula">F_lower = G – F_frict</td>
+      <td class="val">${r.F_lower.toFixed(3)}</td><td>kN</td><td></td></tr>
+  <tr><td>Selvlukkende?</td>
+      <td class="formula">F_lower > 0 og > 25% av F_frict</td>
+      <td class="val ${r.selfClosing?'':'warn'}">${r.selfClosing ? '✓ Ja' : '✗ Nei'}</td><td>–</td><td>NVE 1/2011 §5.2</td></tr>
+  <tr><td>Tettelengde (perimiter)</td>
+      <td class="formula">L_t = 2·(B + H_L)</td>
+      <td class="val">${r.tettelengde.toFixed(2)}</td><td>m</td><td></td></tr>
+  <tr><td>Min. tetningskraft (flatgummi)</td>
+      <td class="formula">F_seal ≥ 5 kN/m · L_t</td>
+      <td class="val">${r.F_seal_req.toFixed(1)}</td><td>kN</td><td>NVE 1/2011 §5.2</td></tr>
+</table>
+
+<h3>2.5 Materialkapasitet – stål</h3>
+<table>
+  <tr><th>Størrelse</th><th>Formel</th><th>Resultat</th><th>Enhet</th><th>Referanse</th></tr>
+  <tr><td>Karakteristisk flytegrense</td>
+      <td class="formula">R_e</td>
+      <td class="val">${s.Re}</td><td>MPa</td><td></td></tr>
+  <tr><td>Materialfaktor (med plastisitetsreserve)</td>
+      <td class="formula">γ_m = ${r.gamma_m}</td>
+      <td class="val">${r.gamma_m}</td><td>–</td><td>NVE 1/2011 Tabell 4.1</td></tr>
+  <tr class="highlight"><td><strong>Dimensjonerende flytegrense</strong></td>
+      <td class="formula">f_yd = (R_e · 0,8) / γ_m</td>
+      <td class="val">${r.f_yd.toFixed(1)}</td><td>MPa</td><td>NVE 1/2011 §4.2</td></tr>
+  <tr><td>Korrosjonstillegg</td>
+      <td class="formula">t_korr = 1 mm per eksponert flate</td>
+      <td class="val">1,0</td><td>mm</td><td>NVE 1/2011 §4.2</td></tr>
+</table>
+
+<!-- ══════════════════════════════════════════════════
+     3. FIGUR
+══════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>3. Skjematisk figur</h2>
+<div class="figure-box">
+  <img src="${figImg}" alt="Glideluke – hydrostatisk trykkfordeling og krefter" style="max-width:16cm;">
+  <figcaption>
+    Figur 1: Glideluke med netto hydrostatisk trykkfordeling og krefter.<br>
+    F_hyd = ${r.F_hyd.toFixed(2)} kN | Angrepspunkt e = ${r.e_kp.toFixed(3)} m over underkant |
+    F_dim = ${r.F_dim.toFixed(2)} kN (γ_f = ${r.gamma_f}) | F_lift = ${r.F_lift.toFixed(2)} kN
+  </figcaption>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     4. KONTROLL OG ADVARSLER
+══════════════════════════════════════════════════ -->
+<h2>4. Kontroll og advarsler</h2>
+
+<h3>4.1 Gyldighetssjekker</h3>
+<table>
+  <tr><th>Kontroll</th><th>Status</th><th>Referanse</th></tr>
+  <tr><td>Trykkhøyde h₁ = ${s.h1} m</td>
+      <td class="${s.h1>40?'warn':s.h1>20?'warn':'ok'}">${s.h1<=20?'✓ ≤ 20 m: kavitasjon/vibrasjon normalt uproblematisk':s.h1<=40?'⚠ 20–40 m: lufting nedstrøms må vurderes':'⚠ > 40 m: spesiell utforming nødvendig'}</td>
+      <td class="ref">NVE 1/2011 C.4</td></tr>
+  <tr><td>Lastfaktor for ${funksjonLabel}</td>
+      <td class="ok">✓ γ_f = ${r.gamma_f} anvendt</td>
+      <td class="ref">NVE 1/2011 §2.5</td></tr>
+  <tr><td>Friksjonsfaktor (NVE minimum)</td>
+      <td class="ok">✓ μ = ${r.mu} (${s.glideliste})</td>
+      <td class="ref">NVE 1/2011 Tabell 5.1</td></tr>
+  <tr><td>Selvlukkende luke</td>
+      <td class="${r.selfClosing?'ok':'warn'}">${r.selfClosing?'✓ Ja – netto lukkekraft > 25% av motkrefter':'⚠ Nei – ekstern lukkekraft nødvendig'}</td>
+      <td class="ref">NVE 1/2011 §5.2</td></tr>
+  <tr><td>Lukebredde vs. -høyde (B > H_L)</td>
+      <td class="${s.B>s.H_L?'warn':'ok'}">${s.B>s.H_L?'⚠ B > H_L: styreruller/styreskinner bør vurderes':'✓ B ≤ H_L: ingen spesielle krav'}</td>
+      <td class="ref">NVE 1/2011 C.4</td></tr>
+</table>
+
+<h3>4.2 Advarsler og merknader</h3>
+<table>
+  <tr><th>Merknad</th></tr>
+  ${warningRows}
+</table>
+
+<!-- ══════════════════════════════════════════════════
+     5. FORUTSETNINGER OG GYLDIGHETSOMRÅDE
+══════════════════════════════════════════════════ -->
+<h2>5. Forutsetninger og gyldighetsområde</h2>
+<div class="note">
+  <strong>Gyldighetsområde:</strong> Beregningsverktøyet dekker hydrostatisk kraftberegning og manøvreringskrefter
+  for rektangulære glideluker med uniform bredde i stasjonær tilstand. Følgende er <em>ikke</em> inkludert og
+  må beregnes separat:
+  <ul style="margin:6pt 0 0 16pt;">
+    <li>Hydrodynamiske trykk og trykkstøt fra strømmende vann</li>
+    <li>Vibrasjon og kavitasjon (vurder særskilt for h > 20 m, jf. NVE C.4)</li>
+    <li>Luftingsbehov nedstrøms tappeluke (alltid vurderes, jf. NVE §5.1)</li>
+    <li>Strukturdimensjonering av platekasse, bjelker og forbindelser</li>
+    <li>Utmattingsanalyse (jf. NVE Vedlegg B for luker med mange belastningsvekslinger)</li>
+    <li>Islast, temperaturlast og jordskjelvlast</li>
+  </ul>
+</div>
+
+<h3>Beregningsstandarder og referanser</h3>
+<table>
+  <tr><th>Referanse</th><th>Tittel</th></tr>
+  <tr><td class="ref">[1] NVE Retningslinjer 1/2011</td><td>Retningslinjer for stenge- og tappeorganer, ror og tverrslagsporter</td></tr>
+  <tr><td class="ref">[2] NVE Retningslinjer (2003/2018)</td><td>Retningslinje for laster og dimensjonering</td></tr>
+  <tr><td class="ref">[3] Damsikkerhetsforskriften</td><td>Forskrift om sikkerhet ved vassdragsanlegg</td></tr>
+  <tr><td class="ref">[4] NS 3472</td><td>Prosjektering av stålkonstruksjoner</td></tr>
+  <tr><td class="ref">[5] NS-EN 13445</td><td>Trykkpåkjente konstruksjoner</td></tr>
+</table>
+
+<div class="footer-line">
+  Rapport generert: ${dato} &nbsp;|&nbsp; Beregningsverktøy: Glideluke-kalkulator NVE 1/2011 &nbsp;|&nbsp;
+  Alle beregninger er brukerens ansvar og bør verifiseres av kompetent ingeniør.
+</div>
+
+</body>
+</html>`;
+}
+
+function previewReport() {
+  if (errors.length > 0) {
+    alert('Rett feil i inndata før rapport genereres.');
+    return;
+  }
+  const html = buildReportHTML(false);
+  const preview = document.getElementById('reportPreview');
+  // Show scaled-down preview in iframe
+  preview.innerHTML = '<iframe id="rptFrame" style="width:100%;height:700px;border:none;border-radius:4px;"></iframe>';
+  const frame = document.getElementById('rptFrame');
+  const doc = frame.contentDocument || frame.contentWindow.document;
+  doc.open(); doc.write(html); doc.close();
+}
+
+function exportWord() {
+  if (errors.length > 0) {
+    alert('Rett feil i inndata før rapport eksporteres.');
+    return;
+  }
+  const html = buildReportHTML(true);
+  const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const prosjekt = document.getElementById('rpt-prosjekt').value.replace(/[^a-zA-Z0-9æøåÆØÅ\-_]/g,'_') || 'Glideluke';
+  const dato = new Date().toISOString().slice(0,10);
+  a.href     = url;
+  a.download = `Beregningsrapport_${prosjekt}_${dato}.doc`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 </script>
 </body>
 </html>
