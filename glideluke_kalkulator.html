@@ -520,7 +520,7 @@
       <!-- TAB: FIGURE -->
       <div id="tab-figure" class="tab-content">
         <div class="figure-wrap">
-          <canvas id="lukeCanvas" width="560" height="420"></canvas>
+          <canvas id="lukeCanvas" width="900" height="620" style="width:100%;height:auto;"></canvas>
           <figcaption id="figCaption">Schematisk fremstilling av glideluke med trykkfordeling</figcaption>
         </div>
       </div>
@@ -1032,268 +1032,276 @@ function renderTraceTable() {
 }
 
 // ═══════════════════════════════════════════════════════
-//  FIGURE – Canvas drawing
+//  FIGURE – Canvas drawing  (stor, informativ versjon)
 // ═══════════════════════════════════════════════════════
 function renderFigure() {
   const canvas = document.getElementById('lukeCanvas');
   const ctx    = canvas.getContext('2d');
-  const W = canvas.width;
-  const H = canvas.height;
-
+  const W = canvas.width;   // 900
+  const H = canvas.height;  // 620
   ctx.clearRect(0, 0, W, H);
+  const s = state, r = results;
 
-  const s = state;
-  const r = results;
-
-  // Layout constants
-  const margin = { left: 80, right: 160, top: 30, bottom: 50 };
-  const gateX  = W / 2 - 20;
-  const drawH  = H - margin.top - margin.bottom;
-  const drawW  = W - margin.left - margin.right;
-
-  // Determine scale: fit both h1 and H_L
-  const maxH   = Math.max(s.h1 + 1, s.H_L + 1);
-  const scale  = drawH / maxH;   // px per meter
-
-  // Y coordinates (canvas: y increases downward; 0 = top of drawing area)
-  const originY = H - margin.bottom;  // bottom datum (y=0 in water column)
-
+  const mg = { left: 70, right: 260, top: 50, bottom: 70 };
+  const drawH = H - mg.top - mg.bottom;
+  const gateW = 56;
+  const gateX = mg.left + (W - mg.left - mg.right) * 0.42;
+  const gateL = gateX - gateW / 2;
+  const gateR = gateX + gateW / 2;
+  const maxH  = Math.max(s.h1 * 1.15, s.H_L * 1.4, 1);
+  const scale = drawH / maxH;
+  const originY = H - mg.bottom;
   function toY(h) { return originY - h * scale; }
 
-  const gateW  = 60;  // gate visual width in px
-  const gateL  = gateX - gateW / 2;
-  const gateR  = gateX + gateW / 2;
+  const y_UK = toY(0), y_OK = toY(s.H_L);
+  const y_h1 = toY(s.h1), y_h2 = toY(Math.max(s.h2, 0));
+  const y_res = toY(r.e_kp);
+  const pressZoneW = gateL - mg.left - 16;
+  const pMaxVal = Math.max(r.p_net_UK, 0.01);
+  const pW_UK = Math.min((r.p_net_UK / pMaxVal) * pressZoneW * 0.88, pressZoneW);
+  const pW_OK = Math.min((r.p_net_OK / pMaxVal) * pressZoneW * 0.88, pressZoneW);
 
-  const y_UK   = toY(0);           // bottom of gate
-  const y_OK   = toY(s.H_L);      // top of gate
-  const y_h1   = toY(s.h1);       // upstream water surface
-  const y_h2   = toY(s.h2);       // downstream water surface (if any)
-
-  // ── Background ────────────────────────────────────────────────
-  ctx.fillStyle = '#f8fafc';
-  ctx.fillRect(0, 0, W, H);
-
-  // ── Wall/channel background ───────────────────────────────────
-  // Upstream water (left of gate)
-  if (s.h1 > 0) {
-    const grad = ctx.createLinearGradient(0, y_h1, 0, y_UK);
-    grad.addColorStop(0, 'rgba(37,99,200,0.08)');
-    grad.addColorStop(1, 'rgba(37,99,200,0.22)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(margin.left, y_h1, gateL - margin.left, y_UK - y_h1);
+  // ── Helpers ──────────────────────────────────────────
+  function arrowFn(x1, y1, x2, y2, color, lw, hl) {
+    lw = lw||2; hl = hl||10;
+    const ang = Math.atan2(y2-y1, x2-x1);
+    ctx.save(); ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=lw;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-hl*Math.cos(ang-0.38), y2-hl*Math.sin(ang-0.38));
+    ctx.lineTo(x2-hl*Math.cos(ang+0.38), y2-hl*Math.sin(ang+0.38));
+    ctx.closePath(); ctx.fill(); ctx.restore();
   }
-
-  // Downstream water (right of gate)
-  if (s.h2 > 0) {
-    const y_h2d = toY(s.h2);
-    const grad2 = ctx.createLinearGradient(0, y_h2d, 0, y_UK);
-    grad2.addColorStop(0, 'rgba(37,99,200,0.06)');
-    grad2.addColorStop(1, 'rgba(37,99,200,0.15)');
-    ctx.fillStyle = grad2;
-    ctx.fillRect(gateR, y_h2d, W - margin.right - gateR, y_UK - y_h2d);
-  }
-
-  // Channel floor / bottom
-  ctx.fillStyle = '#d1d5db';
-  ctx.fillRect(margin.left, y_UK, W - margin.left - margin.right, 8);
-
-  // ── Wall lines ────────────────────────────────────────────────
-  ctx.strokeStyle = '#475569';
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([]);
-  // Left wall
-  ctx.beginPath(); ctx.moveTo(margin.left, margin.top); ctx.lineTo(margin.left, y_UK); ctx.stroke();
-  // Right wall
-  ctx.beginPath(); ctx.moveTo(W - margin.right, margin.top); ctx.lineTo(W - margin.right, y_UK); ctx.stroke();
-
-  // ── Gate body ─────────────────────────────────────────────────
-  const gateGrad = ctx.createLinearGradient(gateL, 0, gateR, 0);
-  gateGrad.addColorStop(0,   '#475569');
-  gateGrad.addColorStop(0.3, '#94a3b8');
-  gateGrad.addColorStop(0.7, '#94a3b8');
-  gateGrad.addColorStop(1,   '#475569');
-  ctx.fillStyle = gateGrad;
-  ctx.fillRect(gateL, y_OK, gateW, y_UK - y_OK);
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(gateL, y_OK, gateW, y_UK - y_OK);
-
-  // Hatching on gate
-  ctx.strokeStyle = '#94a3b8';
-  ctx.lineWidth = 0.5;
-  for (let yy = y_OK + 10; yy < y_UK; yy += 12) {
-    ctx.beginPath(); ctx.moveTo(gateL + 4, yy); ctx.lineTo(gateR - 4, yy); ctx.stroke();
-  }
-
-  // ── Water surface lines ───────────────────────────────────────
-  ctx.strokeStyle = '#2563a8';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([6,3]);
-
-  // Upstream surface
-  ctx.beginPath(); ctx.moveTo(margin.left, y_h1); ctx.lineTo(gateL, y_h1); ctx.stroke();
-  // Downstream surface
-  if (s.h2 > 0) {
-    ctx.beginPath(); ctx.moveTo(gateR, y_h2); ctx.lineTo(W - margin.right, y_h2); ctx.stroke();
-  }
-  ctx.setLineDash([]);
-
-  // ── Pressure diagram (upstream, trapezoidal) ──────────────────
-  const pScale  = gateL - margin.left - 10;   // max width of pressure arrow area
-  const pMaxVal = Math.max(r.p_UK1, r.p_net_UK, 1);
-  const pW_UK   = (r.p_net_UK / pMaxVal) * pScale * 0.7;
-  const pW_OK   = (r.p_net_OK / pMaxVal) * pScale * 0.7;
-
-  // Draw pressure trapezoid (filled)
-  if (r.F_hyd > 0.01) {
-    const px_UK  = gateL - pW_UK;
-    const px_OK  = gateL - pW_OK;
-    ctx.fillStyle = 'rgba(37,99,200,0.18)';
-    ctx.beginPath();
-    ctx.moveTo(gateL, y_UK);
-    ctx.lineTo(px_UK, y_UK);
-    ctx.lineTo(px_OK, y_OK);
-    ctx.lineTo(gateL, y_OK);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.strokeStyle = '#2563a8';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(gateL, y_UK); ctx.lineTo(px_UK, y_UK);
-    ctx.moveTo(gateL, y_OK); ctx.lineTo(px_OK, y_OK);
-    ctx.moveTo(px_UK, y_UK); ctx.lineTo(px_OK, y_OK);
-    ctx.stroke();
-
-    // Arrows along pressure face
-    const nArrows = 5;
-    for (let i = 0; i <= nArrows; i++) {
-      const frac = i / nArrows;
-      const yArrow  = y_OK + (y_UK - y_OK) * frac;
-      const pAtY    = r.p_net_OK + (r.p_net_UK - r.p_net_OK) * frac;
-      const pW_here = (pAtY / pMaxVal) * pScale * 0.7;
-      const xStart  = gateL - pW_here;
-      drawArrow(ctx, xStart, yArrow, gateL, yArrow, '#2563a8');
-    }
-
-    // Resultant force arrow
-    const y_res = toY(r.e_kp);
-    const rLen  = 45;
-    ctx.strokeStyle = '#e07b00';
-    ctx.lineWidth = 2.5;
-    drawArrow(ctx, gateL - rLen - 10, y_res, gateL + 5, y_res, '#e07b00');
-
-    // F_hyd label
-    ctx.fillStyle = '#e07b00';
-    ctx.font = 'bold 11px Segoe UI';
-    ctx.textAlign = 'left';
-    ctx.fillText(`F = ${r.F_hyd.toFixed(1)} kN`, gateR + 8, y_res + 4);
-
-    // Angrepspunkt dotted line
-    ctx.setLineDash([3,3]);
-    ctx.strokeStyle = '#e07b00';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(gateL, y_res);
-    ctx.lineTo(gateR + 60, y_res);
-    ctx.stroke();
+  function dblArrow(x1,y1,x2,y2,color,lw) { arrowFn(x1,y1,x2,y2,color,lw||1.5,7); arrowFn(x2,y2,x1,y1,color,lw||1.5,7); }
+  function dimLine(x1,y1,x2,y2,lbl,side,color) {
+    color=color||'#475569';
+    ctx.save(); ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=1;
+    const dy=x2-x1===0?6:0, dx=y2-y1===0?6:0;
     ctx.setLineDash([]);
-
-    // e label
-    ctx.fillStyle = '#e07b00';
-    ctx.font = '10px Consolas';
-    ctx.fillText(`e = ${r.e_kp.toFixed(3)} m`, gateR + 8, y_res + 16);
+    ctx.beginPath(); ctx.moveTo(x1-dy*0.5,y1+dx*0.5); ctx.lineTo(x1+dy,y1-dx); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x2-dy*0.5,y2+dx*0.5); ctx.lineTo(x2+dy,y2-dx); ctx.stroke();
+    dblArrow(x1,y1,x2,y2,color,1.5);
+    ctx.font='bold 12px Consolas'; ctx.textBaseline='middle';
+    const mx=(x1+x2)/2, my=(y1+y2)/2, off=14;
+    let tx=mx, ty=my;
+    if(side==='right'){tx=mx+off;ctx.textAlign='left';}
+    else if(side==='left'){tx=mx-off;ctx.textAlign='right';}
+    else if(side==='top'){ty=my-off;ctx.textAlign='center';}
+    else{ty=my+off;ctx.textAlign='center';}
+    ctx.strokeStyle='white'; ctx.lineWidth=3; ctx.strokeText(lbl,tx,ty);
+    ctx.fillText(lbl,tx,ty); ctx.restore();
+  }
+  function lbl(text,x,y,opts) {
+    opts=opts||{};
+    ctx.save();
+    ctx.font=(opts.bold?'bold ':''+(opts.size||13))+'px '+(opts.mono?'Consolas':'Segoe UI');
+    ctx.fillStyle=opts.color||'#1e293b';
+    ctx.textAlign=opts.align||'left'; ctx.textBaseline=opts.base||'middle';
+    if(opts.halo!==false){ctx.strokeStyle=opts.haloclr||'white';ctx.lineWidth=3.5;ctx.strokeText(text,x,y);}
+    ctx.fillText(text,x,y); ctx.restore();
   }
 
-  // ── Pressure labels ───────────────────────────────────────────
-  ctx.fillStyle = '#2563a8';
-  ctx.font = '10px Consolas';
-  ctx.textAlign = 'right';
-  ctx.fillText(`p_UK = ${r.p_net_UK.toFixed(1)} kN/m²`, gateL - 4, y_UK - 4);
-  ctx.fillText(`p_OK = ${r.p_net_OK.toFixed(1)} kN/m²`, gateL - 4, y_OK + 12);
+  // ── Background ───────────────────────────────────────
+  ctx.fillStyle='#f0f4f8'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#ffffff'; ctx.fillRect(mg.left-10,mg.top-10,W-mg.left-mg.right+70,drawH+20);
 
-  // ── Water level labels ────────────────────────────────────────
-  ctx.fillStyle = '#1a3a5c';
-  ctx.font = 'bold 11px Segoe UI';
-  ctx.textAlign = 'left';
-  ctx.fillText(`h₁ = ${s.h1} m  (HRV)`, margin.left + 4, y_h1 - 5);
-  if (s.h2 > 0) {
-    ctx.fillText(`h₂ = ${s.h2} m`, gateR + 6, y_h2 - 5);
+  // ── Upstream water ───────────────────────────────────
+  if(s.h1>0){
+    const g=ctx.createLinearGradient(0,y_h1,0,y_UK);
+    g.addColorStop(0,'rgba(37,99,200,0.07)'); g.addColorStop(1,'rgba(37,99,200,0.20)');
+    ctx.fillStyle=g; ctx.fillRect(mg.left,y_h1,gateL-mg.left,y_UK-y_h1);
+  }
+  // ── Downstream water ─────────────────────────────────
+  const rwX=W-mg.right+50;
+  if(s.h2>0.01){
+    const g2=ctx.createLinearGradient(0,y_h2,0,y_UK);
+    g2.addColorStop(0,'rgba(37,99,200,0.05)'); g2.addColorStop(1,'rgba(37,99,200,0.14)');
+    ctx.fillStyle=g2; ctx.fillRect(gateR,y_h2,rwX-gateR,y_UK-y_h2);
+  }
+  // ── Channel floor ────────────────────────────────────
+  ctx.fillStyle='#cbd5e1'; ctx.fillRect(mg.left,y_UK,rwX-mg.left+10,10);
+  ctx.strokeStyle='#94a3b8'; ctx.lineWidth=1;
+  for(let xx=mg.left;xx<rwX+10;xx+=14){ctx.beginPath();ctx.moveTo(xx,y_UK+10);ctx.lineTo(xx+10,y_UK+20);ctx.stroke();}
+  // ── Walls ────────────────────────────────────────────
+  ctx.strokeStyle='#334155'; ctx.lineWidth=2.5; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(mg.left,mg.top-5); ctx.lineTo(mg.left,y_UK); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(rwX,mg.top-5); ctx.lineTo(rwX,y_UK); ctx.stroke();
+  ctx.strokeStyle='#94a3b8'; ctx.lineWidth=1;
+  for(let yy=mg.top;yy<y_UK;yy+=16){ctx.beginPath();ctx.moveTo(mg.left,yy);ctx.lineTo(mg.left-10,yy+10);ctx.stroke();}
+  for(let yy=mg.top;yy<y_UK;yy+=16){ctx.beginPath();ctx.moveTo(rwX,yy);ctx.lineTo(rwX+10,yy+10);ctx.stroke();}
+
+  // ── Pressure trapezoid ───────────────────────────────
+  if(r.F_hyd>0.01){
+    const px_UK=gateL-pW_UK, px_OK=gateL-pW_OK;
+    const pf=ctx.createLinearGradient(px_UK,0,gateL,0);
+    pf.addColorStop(0,'rgba(37,99,200,0.08)'); pf.addColorStop(1,'rgba(37,99,200,0.28)');
+    ctx.fillStyle=pf;
+    ctx.beginPath(); ctx.moveTo(gateL,y_UK); ctx.lineTo(px_UK,y_UK); ctx.lineTo(px_OK,y_OK); ctx.lineTo(gateL,y_OK); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#1d4ed8'; ctx.lineWidth=2; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(px_UK,y_UK); ctx.lineTo(gateL,y_UK); ctx.moveTo(px_OK,y_OK); ctx.lineTo(gateL,y_OK); ctx.moveTo(px_UK,y_UK); ctx.lineTo(px_OK,y_OK); ctx.stroke();
+    const nA=Math.max(4,Math.min(9,Math.round((y_UK-y_OK)/35)));
+    for(let i=0;i<=nA;i++){
+      const frac=i/nA, yA=y_OK+(y_UK-y_OK)*frac;
+      const pH=r.p_net_OK+(r.p_net_UK-r.p_net_OK)*frac;
+      const xA=gateL-(pH/pMaxVal)*pressZoneW*0.88;
+      arrowFn(xA,yA,gateL-1,yA,'#2563a8',1.5,7);
+    }
+    // Pressure value labels
+    lbl(r.p_net_UK.toFixed(1)+' kN/m²',px_UK-6,y_UK-1,{color:'#1d4ed8',mono:true,size:12,align:'right',base:'bottom',bold:true});
+    if(r.p_net_OK>0.1) lbl(r.p_net_OK.toFixed(1)+' kN/m²',px_OK-6,y_OK+1,{color:'#1d4ed8',mono:true,size:12,align:'right',base:'top',bold:true});
+
+    // Resultant F_hyd arrow
+    arrowFn(px_UK-30,y_res,gateL+3,y_res,'#e07b00',3.5,13);
+    // F_hyd callout box (right of gate)
+    const bx=gateR+16, by=y_res-28;
+    ctx.save(); ctx.fillStyle='#fff7ed'; ctx.strokeStyle='#e07b00'; ctx.lineWidth=1.5;
+    rrect(ctx,bx,by,215,54,5); ctx.fill(); ctx.stroke(); ctx.restore();
+    lbl('F_hyd = '+r.F_hyd.toFixed(2)+' kN',bx+10,by+15,{color:'#c2410c',mono:true,size:13,bold:true});
+    lbl('e = '+r.e_kp.toFixed(3)+' m over UK',bx+10,by+35,{color:'#92400e',mono:true,size:12});
+    ctx.setLineDash([5,4]); ctx.strokeStyle='#e07b00'; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(gateL-pW_UK-10,y_res); ctx.lineTo(bx+215,y_res); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='#e07b00'; ctx.beginPath(); ctx.arc(gateL,y_res,5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(gateL,y_res,5,0,Math.PI*2); ctx.stroke();
   }
 
-  // ── Dimension lines ───────────────────────────────────────────
-  ctx.strokeStyle = '#475569';
-  ctx.lineWidth = 1;
-  // H_L dimension (right of gate)
-  const dimX = gateR + 10;
-  ctx.beginPath();
-  ctx.moveTo(dimX, y_OK); ctx.lineTo(dimX, y_UK);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(dimX - 4, y_OK); ctx.lineTo(dimX + 4, y_OK);
-  ctx.moveTo(dimX - 4, y_UK); ctx.lineTo(dimX + 4, y_UK);
-  ctx.stroke();
-  ctx.fillStyle = '#475569';
-  ctx.font = '10px Consolas';
-  ctx.textAlign = 'left';
-  ctx.fillText(`H_L=${s.H_L}m`, dimX + 6, (y_OK + y_UK) / 2 + 4);
-
-  // B dimension (below gate)
-  const dimY = y_UK + 20;
-  ctx.beginPath();
-  ctx.moveTo(gateL, dimY); ctx.lineTo(gateR, dimY); ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(gateL, dimY - 4); ctx.lineTo(gateL, dimY + 4);
-  ctx.moveTo(gateR, dimY - 4); ctx.lineTo(gateR, dimY + 4);
-  ctx.stroke();
-  ctx.textAlign = 'center';
-  ctx.fillText(`B=${s.B}m`, gateX, dimY + 12);
-
-  // ── Gate label ────────────────────────────────────────────────
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 11px Segoe UI';
-  ctx.textAlign = 'center';
-  ctx.fillText('GLIDELUKE', gateX, (y_OK + y_UK) / 2 + 4);
-
-  // ── Axes / scale ──────────────────────────────────────────────
-  ctx.strokeStyle = '#94a3b8';
-  ctx.lineWidth = 1;
-  const axX = margin.left - 20;
-  ctx.beginPath();
-  ctx.moveTo(axX, margin.top); ctx.lineTo(axX, y_UK); ctx.stroke();
-  // Tick marks and labels
-  const tickStep = maxH > 20 ? 5 : maxH > 10 ? 2 : 1;
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '9px Consolas';
-  ctx.textAlign = 'right';
-  for (let h = 0; h <= maxH; h += tickStep) {
-    const ty = toY(h);
-    ctx.beginPath(); ctx.moveTo(axX - 4, ty); ctx.lineTo(axX, ty); ctx.stroke();
-    ctx.fillText(`${h}m`, axX - 6, ty + 3);
+  // ── Egenvekt G ───────────────────────────────────────
+  if(s.G>0.01){
+    const gax=gateX, gay1=y_OK-55, gay2=y_OK-4;
+    arrowFn(gax,gay1,gax,gay2,'#15803d',3,11);
+    const gbx=gateX+10;
+    ctx.save(); ctx.fillStyle='#f0fdf4'; ctx.strokeStyle='#15803d'; ctx.lineWidth=1.5;
+    rrect(ctx,gbx,gay1-12,130,28,4); ctx.fill(); ctx.stroke(); ctx.restore();
+    lbl('G = '+s.G.toFixed(1)+' kN',gbx+8,gay1+2,{color:'#15803d',mono:true,size:12,bold:true});
   }
 
-  // ── Caption ───────────────────────────────────────────────────
+  // ── Gate body ────────────────────────────────────────
+  const gg=ctx.createLinearGradient(gateL,0,gateR,0);
+  gg.addColorStop(0,'#334155'); gg.addColorStop(0.25,'#64748b'); gg.addColorStop(0.75,'#64748b'); gg.addColorStop(1,'#334155');
+  ctx.fillStyle=gg; ctx.fillRect(gateL,y_OK,gateW,y_UK-y_OK);
+  ctx.strokeStyle='#0f172a'; ctx.lineWidth=2.5; ctx.setLineDash([]);
+  ctx.strokeRect(gateL,y_OK,gateW,y_UK-y_OK);
+  ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1;
+  for(let yy=y_OK+8;yy<y_UK-2;yy+=14){ctx.beginPath();ctx.moveTo(gateL+3,yy);ctx.lineTo(gateR-3,yy);ctx.stroke();}
+  if(y_UK-y_OK>28){ctx.fillStyle='white';ctx.font='bold 11px Segoe UI';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('GLIDELUKE',gateX,(y_OK+y_UK)/2);}
+  // Glidelister
+  const gsH=Math.min(y_UK-y_OK,200), gsY=(y_OK+y_UK)/2-gsH/2;
+  ctx.fillStyle='#94a3b8'; ctx.fillRect(gateL-6,gsY,6,gsH); ctx.fillRect(gateR,gsY,6,gsH);
+  ctx.strokeStyle='#475569'; ctx.lineWidth=1;
+  ctx.strokeRect(gateL-6,gsY,6,gsH); ctx.strokeRect(gateR,gsY,6,gsH);
+
+  // ── Water surfaces ───────────────────────────────────
+  ctx.strokeStyle='#1d4ed8'; ctx.lineWidth=2.5; ctx.setLineDash([8,4]);
+  ctx.beginPath(); ctx.moveTo(mg.left,y_h1); ctx.lineTo(gateL,y_h1); ctx.stroke(); ctx.setLineDash([]);
+  drawWave(ctx,mg.left+14,y_h1,'#1d4ed8');
+  lbl('h₁ = '+s.h1.toFixed(2)+' m  (HRV)',mg.left+38,y_h1-10,{color:'#1d4ed8',bold:true,size:13});
+  if(s.h2>0.01){
+    ctx.strokeStyle='#0369a1'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+    ctx.beginPath(); ctx.moveTo(gateR,y_h2); ctx.lineTo(rwX,y_h2); ctx.stroke(); ctx.setLineDash([]);
+    drawWave(ctx,gateR+10,y_h2,'#0369a1');
+    lbl('h₂ = '+s.h2.toFixed(2)+' m',gateR+36,y_h2-10,{color:'#0369a1',bold:true,size:13});
+  } else {
+    lbl('Tørt nedstrøms',gateR+14,(y_OK+y_UK)/2+20,{color:'#94a3b8',size:12});
+  }
+
+  // ── Dimension lines ──────────────────────────────────
+  dimLine(gateR+42,y_OK,gateR+42,y_UK,'H_L = '+s.H_L.toFixed(2)+' m','right','#334155');
+  if(s.h1>0) dimLine(mg.left-32,y_h1,mg.left-32,y_UK,s.h1.toFixed(2)+' m','left','#1d4ed8');
+  if(s.h2>0.01) dimLine(rwX+30,y_h2,rwX+30,y_UK,s.h2.toFixed(2)+' m','right','#0369a1');
+  dimLine(gateL,y_UK+32,gateR,y_UK+32,'B = '+s.B.toFixed(2)+' m','bottom','#334155');
+  if(r.F_hyd>0.01) dimLine(gateL-10,y_UK,gateL-10,y_res,'e = '+r.e_kp.toFixed(3)+' m','left','#e07b00');
+
+  // ── F_lift: arrow upward, LEFT of gate ───────────────
+  const liftX=gateL-28, liftY1=y_OK-6;
+  const liftLen=Math.min(65,Math.max(30,r.F_lift*0.8)), liftY2=liftY1-liftLen;
+  arrowFn(liftX,liftY1,liftX,liftY2,'#7c3aed',2.5,10);
+  const lbW=148,lbH=28,lbX=liftX-lbW-6,lbY=liftY2-lbH/2;
+  ctx.save(); ctx.fillStyle='#f5f3ff'; ctx.strokeStyle='#7c3aed'; ctx.lineWidth=1.5;
+  rrect(ctx,lbX,lbY,lbW,lbH,4); ctx.fill(); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.strokeStyle='#7c3aed'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(lbX+lbW,lbY+lbH/2); ctx.lineTo(liftX,liftY2); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+  lbl('F_lift = '+r.F_lift.toFixed(1)+' kN',lbX+lbW/2,lbY+lbH/2,{color:'#5b21b6',mono:true,size:12,bold:true,align:'center'});
+
+  // ── F_frict: arrow downward, RIGHT of gate, BELOW F_hyd box ──
+  const frX=gateR+28;
+  const frY1=Math.min(y_res+55, y_UK-30);
+  const frLen=Math.min(50,Math.max(22,r.F_frict*0.65));
+  const frY2=Math.min(frY1+frLen, y_UK+2);
+  arrowFn(frX,frY1,frX,frY2,'#be185d',2.5,10);
+  const fbW=148,fbH=28,fbX=frX+8,fbY=(frY1+frY2)/2-fbH/2;
+  ctx.save(); ctx.fillStyle='#fdf2f8'; ctx.strokeStyle='#be185d'; ctx.lineWidth=1.5;
+  rrect(ctx,fbX,fbY,fbW,fbH,4); ctx.fill(); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.strokeStyle='#be185d'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(fbX,fbY+fbH/2); ctx.lineTo(frX,frY1+(frY2-frY1)/2); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+  lbl('F_fr = '+r.F_frict.toFixed(1)+' kN',fbX+fbW/2,fbY+fbH/2,{color:'#9d174d',mono:true,size:12,bold:true,align:'center'});
+
+  // ── Depth axis ───────────────────────────────────────
+  const axX=mg.left-52;
+  ctx.strokeStyle='#94a3b8'; ctx.lineWidth=1; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(axX,mg.top); ctx.lineTo(axX,y_UK); ctx.stroke();
+  const ts=maxH>30?10:maxH>15?5:maxH>6?2:1;
+  for(let h=0;h<=maxH+0.01;h+=ts){
+    const ty=toY(h);
+    if(ty<mg.top||ty>y_UK+2) continue;
+    ctx.beginPath(); ctx.moveTo(axX-5,ty); ctx.lineTo(axX,ty); ctx.stroke();
+    lbl(h.toFixed(0)+' m',axX-8,ty,{color:'#64748b',size:11,mono:true,align:'right',halo:false});
+  }
+  ctx.save(); ctx.translate(axX-22,(mg.top+y_UK)/2); ctx.rotate(-Math.PI/2);
+  ctx.font='11px Segoe UI'; ctx.fillStyle='#94a3b8'; ctx.textAlign='center'; ctx.fillText('Dybde (m)',0,0); ctx.restore();
+
+  // ── Legend ───────────────────────────────────────────
+  const legX=W-mg.right+20, legY=mg.top+10, legW=mg.right-30;
+  ctx.save(); ctx.fillStyle='white'; ctx.strokeStyle='#e2e8f0'; ctx.lineWidth=1;
+  rrect(ctx,legX-8,legY-8,legW,195,6); ctx.fill(); ctx.stroke(); ctx.restore();
+  const legItems=[
+    {color:'#2563a8',lw:3,dash:[],text:'Netto trykkfordeling'},
+    {color:'#e07b00',lw:3,dash:[],text:'Resultant F_hyd'},
+    {color:'#15803d',lw:3,dash:[],text:'Egenvekt G'},
+    {color:'#7c3aed',lw:3,dash:[],text:'Løftekraft F_lift'},
+    {color:'#be185d',lw:2,dash:[],text:'Friksjonskraft F_frict'},
+    {color:'#1d4ed8',lw:2,dash:[8,4],text:'Vannflate (oppstrøms)'},
+    {color:'#0369a1',lw:2,dash:[6,4],text:'Vannflate (nedstrøms)'},
+  ];
+  lbl('Tegnforklaring',legX,legY+4,{bold:true,size:12,color:'#1e293b'});
+  legItems.forEach((it,i)=>{
+    const ly=legY+26+i*24;
+    ctx.save(); ctx.strokeStyle=it.color; ctx.lineWidth=it.lw; ctx.setLineDash(it.dash||[]);
+    ctx.beginPath(); ctx.moveTo(legX,ly); ctx.lineTo(legX+30,ly); ctx.stroke(); ctx.restore();
+    lbl(it.text,legX+36,ly,{color:'#334155',size:11,halo:false});
+  });
+
+  // ── Dimensjonerende laster ───────────────────────────
+  const lfY=legY+200;
+  ctx.save(); ctx.fillStyle='#eff6ff'; ctx.strokeStyle='#2563a8'; ctx.lineWidth=1.5;
+  rrect(ctx,legX-8,lfY,legW,100,5); ctx.fill(); ctx.stroke(); ctx.restore();
+  lbl('Dimensjonerende laster',legX,lfY+14,{bold:true,size:12,color:'#1e293b'});
+  lbl('γ_f = '+r.gamma_f.toFixed(1)+'  (NVE §2.5)',legX,lfY+34,{mono:true,size:12,color:'#1d4ed8'});
+  lbl('F_dim = '+r.F_dim.toFixed(1)+' kN',legX,lfY+54,{mono:true,size:12,color:'#c2410c',bold:true});
+  lbl('F_akt = '+r.F_actuator.toFixed(1)+' kN  (ψ='+r.psi+')',legX,lfY+74,{mono:true,size:12,color:'#7c3aed'});
+
+  // ── Title ────────────────────────────────────────────
+  ctx.save(); ctx.fillStyle='#1a3a5c'; ctx.font='bold 15px Segoe UI'; ctx.textAlign='center';
+  ctx.fillText('Glideluke – Hydrostatisk trykkfordeling og krefter',W/2,22); ctx.restore();
+
   document.getElementById('figCaption').textContent =
-    `Glideluke: B=${s.h1} m vannstand, netto hydrostatisk kraft F_hyd = ${r.F_hyd.toFixed(1)} kN, ` +
-    `angrepspunkt e = ${r.e_kp.toFixed(3)} m over underkant`;
+    'Netto hydrostatisk kraft F_hyd = '+r.F_hyd.toFixed(2)+' kN  |  '+
+    'Angrepspunkt e = '+r.e_kp.toFixed(3)+' m over underkant  |  '+
+    'Dim. kraft F_dim = '+r.F_dim.toFixed(2)+' kN (γ_f = '+r.gamma_f+')  |  '+
+    'Løftekraft F_lift = '+r.F_lift.toFixed(2)+' kN';
 }
 
-function drawArrow(ctx, x1, y1, x2, y2, color) {
-  const headLen = 7;
-  const angle   = Math.atan2(y2 - y1, x2 - x1);
-  ctx.strokeStyle = color;
-  ctx.fillStyle   = color;
-  ctx.lineWidth   = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(x2, y2);
-  ctx.lineTo(x2 - headLen * Math.cos(angle - 0.4), y2 - headLen * Math.sin(angle - 0.4));
-  ctx.lineTo(x2 - headLen * Math.cos(angle + 0.4), y2 - headLen * Math.sin(angle + 0.4));
-  ctx.closePath();
-  ctx.fill();
+function rrect(ctx,x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
+}
+function drawWave(ctx,x,y,color){
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=2; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x,y);
+  ctx.bezierCurveTo(x+4,y-5,x+8,y-5,x+12,y);
+  ctx.bezierCurveTo(x+16,y+5,x+20,y+5,x+24,y);
+  ctx.stroke(); ctx.restore();
 }
 
 // ═══════════════════════════════════════════════════════
