@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glideluke – Beregningsverktøy (NVE Retningslinjer 1/2011)</title>
+<style>
+  :root {
+    --blue-dark:  #1a3a5c;
+    --blue-mid:   #2563a8;
+    --blue-light: #dbeafe;
+    --accent:     #e07b00;
+    --green:      #15803d;
+    --red:        #dc2626;
+    --warn-bg:    #fef3c7;
+    --warn-border:#d97706;
+    --err-bg:     #fee2e2;
+    --err-border: #dc2626;
+    --ok-bg:      #dcfce7;
+    --ok-border:  #15803d;
+    --gray-light: #f8fafc;
+    --gray-mid:   #e2e8f0;
+    --gray-dark:  #475569;
+    --shadow:     0 2px 8px rgba(0,0,0,0.12);
+    --radius:     6px;
+    --font:       'Segoe UI', system-ui, sans-serif;
+    --mono:       'Consolas', 'Courier New', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    font-size: 14px;
+    background: #f0f4f8;
+    color: #1e293b;
+    line-height: 1.5;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--blue-dark);
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow);
+  }
+  header .logo { font-size: 28px; }
+  header h1 { font-size: 18px; font-weight: 700; line-height: 1.2; }
+  header p  { font-size: 11px; opacity: .75; margin-top: 2px; }
+  .nve-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.3);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  /* ── LAYOUT ── */
+  .app {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 16px;
+    padding: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+  }
+
+  /* ── PANELS ── */
+  .panel {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .panel-header {
+    background: var(--blue-dark);
+    color: #fff;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-header .icon { font-size: 16px; }
+  .panel-body { padding: 14px 16px; }
+
+  /* ── INPUT SECTIONS ── */
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--blue-mid);
+    border-bottom: 2px solid var(--blue-light);
+    padding-bottom: 4px;
+    margin: 14px 0 10px;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  .field { margin-bottom: 10px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 3px;
+    color: #334155;
+  }
+  .field label .sym {
+    font-family: var(--mono);
+    color: var(--blue-mid);
+    font-style: italic;
+  }
+  .field-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .field-row input, .field-row select {
+    flex: 1;
+  }
+  input[type=number], input[type=text], select {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1.5px solid var(--gray-mid);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: #1e293b;
+    transition: border-color .15s;
+    background: #fff;
+  }
+  input[type=number]:focus, input[type=text]:focus, select:focus {
+    outline: none;
+    border-color: var(--blue-mid);
+  }
+  input.invalid { border-color: var(--red); background: #fff5f5; }
+  .unit {
+    font-size: 11px;
+    color: var(--gray-dark);
+    white-space: nowrap;
+    min-width: 36px;
+    font-family: var(--mono);
+  }
+  .hint {
+    font-size: 10.5px;
+    color: #94a3b8;
+    margin-top: 2px;
+  }
+
+  /* ── MESSAGES ── */
+  .msg-area { margin-top: 12px; }
+  .msg {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-bottom: 6px;
+    border-left: 3px solid;
+  }
+  .msg-err  { background: var(--err-bg);  border-color: var(--err-border);  }
+  .msg-warn { background: var(--warn-bg); border-color: var(--warn-border); }
+  .msg-ok   { background: var(--ok-bg);   border-color: var(--ok-border);   }
+  .msg .icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── TABS ── */
+  .tabs { display: flex; border-bottom: 2px solid var(--gray-mid); }
+  .tab-btn {
+    padding: 9px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-dark);
+    cursor: pointer;
+    border: none;
+    background: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: color .15s, border-color .15s;
+  }
+  .tab-btn:hover { color: var(--blue-mid); }
+  .tab-btn.active {
+    color: var(--blue-dark);
+    border-bottom-color: var(--blue-mid);
+  }
+  .tab-content { display: none; padding: 14px; }
+  .tab-content.active { display: block; }
+
+  /* ── RESULT CARDS ── */
+  .result-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .result-card {
+    background: var(--gray-light);
+    border: 1.5px solid var(--gray-mid);
+    border-radius: 5px;
+    padding: 10px 12px;
+  }
+  .result-card .label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--gray-dark);
+    margin-bottom: 4px;
+  }
+  .result-card .value {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--blue-dark);
+  }
+  .result-card .sub {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-top: 2px;
+  }
+  .result-card.highlight {
+    background: var(--blue-light);
+    border-color: var(--blue-mid);
+  }
+  .result-card.highlight .value { color: var(--blue-mid); }
+  .result-card.warning-card {
+    background: var(--warn-bg);
+    border-color: var(--warn-border);
+  }
+  .result-card.warning-card .value { color: var(--accent); }
+
+  /* ── FORMULA TRACE ── */
+  .trace-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+  .trace-table th {
+    background: var(--blue-light);
+    color: var(--blue-dark);
+    padding: 6px 10px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  .trace-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--gray-mid);
+    vertical-align: top;
+  }
+  .trace-table tr:last-child td { border-bottom: none; }
+  .trace-table .formula {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--blue-mid);
+  }
+  .trace-table .ref {
+    font-size: 10.5px;
+    color: #94a3b8;
+  }
+  .trace-table .num {
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--blue-dark);
+  }
+  .trace-table tr:hover td { background: #f8fafc; }
+
+  /* ── SVG FIGURES ── */
+  .figure-wrap {
+    background: var(--gray-light);
+    border: 1px solid var(--gray-mid);
+    border-radius: 5px;
+    padding: 12px;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .figure-wrap figcaption {
+    font-size: 11px;
+    color: var(--gray-dark);
+    margin-top: 6px;
+    font-style: italic;
+  }
+  svg { max-width: 100%; height: auto; }
+
+  /* ── MISC ── */
+  .ref-badge {
+    display: inline-block;
+    background: var(--blue-light);
+    color: var(--blue-dark);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+    font-family: var(--mono);
+  }
+  .separator {
+    height: 1px;
+    background: var(--gray-mid);
+    margin: 12px 0;
+  }
+  .small-note {
+    font-size: 10.5px;
+    color: #94a3b8;
+    font-style: italic;
+    margin-bottom: 6px;
+  }
+  .status-bar {
+    background: var(--blue-dark);
+    color: rgba(255,255,255,.8);
+    font-size: 11px;
+    padding: 5px 24px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .status-bar span { display: flex; align-items: center; gap: 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot-green { background: #4ade80; }
+  .dot-red   { background: #f87171; }
+  .dot-yellow{ background: #fbbf24; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🔩</div>
+  <div>
+    <h1>Glideluke – Beregningsverktøy for tappe- og stengeorgan</h1>
+    <p>Hydrostatisk kraftberegning · Dimensjonerende laster · Manøvreringskrefter</p>
+  </div>
+  <div class="nve-badge">NVE Retningslinjer 1/2011</div>
+</header>
+
+<div id="statusBar" class="status-bar">
+  <span><span class="dot dot-yellow" id="dot-input"></span> Inndata ikke validert</span>
+  <span id="sb-h">h = – m</span>
+  <span id="sb-F">F<sub>res</sub> = – kN</span>
+  <span id="sb-M">Angrepspunkt = – m</span>
+</div>
+
+<div class="app">
+  <!-- ═══════════════════════ LEFT COLUMN – INPUT ═══════════════════════ -->
+  <div>
+    <div class="panel">
+      <div class="panel-header"><span class="icon">⚙️</span> Inndata</div>
+      <div class="panel-body">
+
+        <div class="section-title">Lukegeometri</div>
+
+        <div class="field">
+          <label>Lukebredde <span class="sym">B</span></label>
+          <div class="field-row">
+            <input type="number" id="B" value="1.5" min="0.05" max="30" step="0.01">
+            <span class="unit">m</span>
+          </div>
+          <div class="hint">Fri åpningsbredde (mellom glidelister/sider)</div>
+        </div>
+
+        <div class="field">
+          <label>Lukehøyde <span class="sym">H_L</span></label>
+          <div class="field-row">
+            <input type="number" id="H_L" value="1.2" min="0.05" max="30" step="0.01">
+            <span class="unit">m</span>
+          </div>
+          <div class="hint">Høyde på lukeblad (tettet åpning)</div>
+        </div>
+
+        <div class="field">
+          <label>Underkant luke (over bunnen) <span class="sym">z_UK</span></label>
+          <div class="field-row">
+            <input type="number" id="z_UK" value="0" min="0" max="200" step="0.01">
+            <span class="unit">m</span>
+          </div>
+          <div class="hint">Koteavstand fra bunnen til underkant luke (0 = bunntappeluke)</div>
+        </div>
+
+        <div class="separator"></div>
+        <div class="section-title">Vannstander</div>
+
+        <div class="field">
+          <label>Oppstrøms vannstand <span class="sym">HRV / h₁</span></label>
+          <div class="field-row">
+            <input type="number" id="h1" value="5.0" min="0" max="300" step="0.01">
+            <span class="unit">m</span>
+          </div>
+          <div class="hint">Vannstand over ukens underkant, oppstrøms (≥ lukehøyde for fullt trykk)</div>
+        </div>
+
+        <div class="field">
+          <label>Nedstrøms vannstand <span class="sym">h₂</span></label>
+          <div class="field-row">
+            <input type="number" id="h2" value="0.0" min="0" max="300" step="0.01">
+            <span class="unit">m</span>
+          </div>
+          <div class="hint">Vannstand over underkant luke, nedstrøms (0 = tørt nedstrøms)</div>
+        </div>
+
+        <div class="separator"></div>
+        <div class="section-title">Driftstilstand og klasse</div>
+
+        <div class="field">
+          <label>Lukeposisjon / driftstilstand</label>
+          <select id="driftstilstand">
+            <option value="stengt">Stengt – fullt hydrostatisk trykk</option>
+            <option value="apning">Åpning – trykk-belastet manøvrering</option>
+            <option value="mellom">Mellomstilling – regulering</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Konsekvensklasse</label>
+          <select id="konsekvensklasse">
+            <option value="1">Klasse 1</option>
+            <option value="2" selected>Klasse 2</option>
+            <option value="3">Klasse 3</option>
+          </select>
+          <div class="hint">Jf. damsikkerhetsforskriften § 4-1</div>
+        </div>
+
+        <div class="field">
+          <label>Funksjon</label>
+          <select id="funksjon">
+            <option value="tappe" selected>Tappeluke / stengeorgan</option>
+            <option value="flom">Flomluke</option>
+            <option value="inntak">Inntaksluke</option>
+          </select>
+        </div>
+
+        <div class="separator"></div>
+        <div class="section-title">Material og friksjon</div>
+
+        <div class="field">
+          <label>Stålkvalitet (flytegrense) <span class="sym">R_e</span></label>
+          <div class="field-row">
+            <input type="number" id="Re" value="355" min="100" max="700" step="5">
+            <span class="unit">MPa</span>
+          </div>
+          <div class="hint">S235=235, S275=275, S355=355 MPa</div>
+        </div>
+
+        <div class="field">
+          <label>Glidelisttype</label>
+          <select id="glideliste">
+            <option value="bronse">Bronse mot rustfritt stål – μ = 0,60</option>
+            <option value="polymer" selected>Polymer/polyamid mot rustfritt stål – μ = 0,40</option>
+            <option value="spesial">Spesialglidelager (beskyttet) – μ = 0,15</option>
+          </select>
+          <div class="hint">Jf. NVE Tabell 5.1 (minimumsverdier)</div>
+        </div>
+
+        <div class="field">
+          <label>Egenvekt lukekonstruksjon <span class="sym">G</span></label>
+          <div class="field-row">
+            <input type="number" id="G" value="5.0" min="0" max="5000" step="0.5">
+            <span class="unit">kN</span>
+          </div>
+        </div>
+
+        <div class="separator"></div>
+        <div class="section-title">Grensetilstand</div>
+
+        <div class="field">
+          <label>Beregningstype</label>
+          <select id="grensetilstand">
+            <option value="brudd">Bruddgrensetilstand (ULS)</option>
+            <option value="ulykke">Ulykkesgrensetilstand (ALS)</option>
+            <option value="bruks">Bruksgrensetilstand (SLS)</option>
+          </select>
+        </div>
+
+      </div><!-- /panel-body -->
+    </div><!-- /panel -->
+
+    <!-- Validation messages -->
+    <div id="msgArea" class="msg-area" style="margin-top:10px;"></div>
+
+  </div><!-- /left column -->
+
+  <!-- ═══════════════════════ RIGHT COLUMN – RESULTS ═══════════════════════ -->
+  <div>
+    <div class="panel">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('results')">📊 Resultater</button>
+        <button class="tab-btn" onclick="showTab('trace')">🧮 Beregningsspor</button>
+        <button class="tab-btn" onclick="showTab('figure')">📐 Figur</button>
+        <button class="tab-btn" onclick="showTab('check')">✅ Kontroll</button>
+      </div>
+
+      <!-- TAB: RESULTS -->
+      <div id="tab-results" class="tab-content active">
+
+        <div id="hydro-cards" class="result-grid"></div>
+
+        <div class="section-title">Dimensjonerende laster (med lastfaktorer)</div>
+        <div id="dim-cards" class="result-grid"></div>
+
+        <div class="section-title">Manøvreringskrefter</div>
+        <div id="mano-cards" class="result-grid"></div>
+
+      </div>
+
+      <!-- TAB: TRACE -->
+      <div id="tab-trace" class="tab-content">
+        <div class="small-note">Alle beregningstrinn med formler og referanser til NVE-veilederen.</div>
+        <div id="traceContent"></div>
+      </div>
+
+      <!-- TAB: FIGURE -->
+      <div id="tab-figure" class="tab-content">
+        <div class="figure-wrap">
+          <canvas id="lukeCanvas" width="560" height="420"></canvas>
+          <figcaption id="figCaption">Schematisk fremstilling av glideluke med trykkfordeling</figcaption>
+        </div>
+      </div>
+
+      <!-- TAB: CHECK -->
+      <div id="tab-check" class="tab-content">
+        <div class="section-title">Gyldighetsområde og forutsetninger</div>
+        <div id="checkContent"></div>
+
+        <div class="section-title" style="margin-top:16px;">Kapasitetskontroll – stål</div>
+        <div id="capacityContent"></div>
+
+        <div class="section-title" style="margin-top:16px;">Advarsler og spesielle hensyn</div>
+        <div id="warningsContent"></div>
+      </div>
+
+    </div><!-- /panel -->
+  </div><!-- /right column -->
+</div><!-- /app -->
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONSTANTS – direct from NVE Retningslinjer 1/2011
+// ═══════════════════════════════════════════════════════
+const RHO_W  = 1000;    // kg/m³ water density
+const G_GRAV = 9.81;    // m/s²
+const GAMMA_W = RHO_W * G_GRAV / 1000;  // 9.81 kN/m³
+
+// Load factors – Table 2.1 (NVE 1/2011)
+const LF = {
+  brudd: {
+    statisk:   1.2,   // permanent static water pressure (standard)
+    tappeluke: 1.4,   // tappe-/flomorganer (§ 2.5 special rule)
+    variable:  1.2,
+    ulykke:    1.0,
+  },
+  ulykke: { statisk: 1.0, tappeluke: 1.0, variable: 1.0 },
+  bruks:  { statisk: 1.0, tappeluke: 1.0, variable: 1.0 },
+};
+
+// Material factors – Table 4.1 (NVE 1/2011)
+const MF = {
+  brudd:  { med: 1.25, uten: 1.60 },
+  ulykke: { med: 1.10, uten: 1.30 },
+  bruks:  { med: 1.00, uten: 1.00 },
+};
+
+// Friction coefficients – Table 5.1 (NVE 1/2011)
+const MU = {
+  bronse:  0.60,
+  polymer: 0.40,
+  spesial: 0.15,
+};
+
+// Capacity factors for manoeuvring – NVE § 5.2
+const PSI = {
+  tappe: 1.0,   // Glideluke mot fullt trykk, glidelistfriksjon 0,6
+  flom:  1.2,   // Glideluke trykkavlastet / rulleluke
+  inntak: 1.2,
+};
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let state = {};
+let errors = [];
+let warnings = [];
+let results = {};
+
+// ═══════════════════════════════════════════════════════
+//  INPUT HANDLING
+// ═══════════════════════════════════════════════════════
+const inputIds = ['B','H_L','z_UK','h1','h2','Re','G','driftstilstand',
+                  'konsekvensklasse','funksjon','glideliste','grensetilstand'];
+
+inputIds.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', onInputChange);
+});
+
+function onInputChange() {
+  validate();
+  if (errors.length === 0) calculate();
+  render();
+}
+
+// ═══════════════════════════════════════════════════════
+//  VALIDATION
+// ═══════════════════════════════════════════════════════
+function validate() {
+  errors = [];
+  warnings = [];
+
+  const get = id => {
+    const el = document.getElementById(id);
+    el && el.classList.remove('invalid');
+    return parseFloat(el ? el.value : NaN);
+  };
+  const fail = (id, msg) => {
+    errors.push({ id, msg });
+    const el = document.getElementById(id);
+    if (el && el.type === 'number') el.classList.add('invalid');
+  };
+  const warn = msg => warnings.push(msg);
+
+  const B   = get('B');
+  const H_L = get('H_L');
+  const z_UK= get('z_UK');
+  const h1  = get('h1');
+  const h2  = get('h2');
+  const Re  = get('Re');
+  const G   = get('G');
+
+  // Geometry checks
+  if (isNaN(B) || B <= 0)    fail('B',   'Lukebredde B må være positiv (> 0 m).');
+  if (isNaN(H_L) || H_L <= 0) fail('H_L','Lukehøyde H_L må være positiv (> 0 m).');
+  if (isNaN(z_UK) || z_UK < 0) fail('z_UK','Underkant luke z_UK kan ikke være negativ.');
+  if (isNaN(h1) || h1 < 0)   fail('h1',  'Oppstrøms vannstand h₁ kan ikke være negativ.');
+  if (isNaN(h2) || h2 < 0)   fail('h2',  'Nedstrøms vannstand h₂ kan ikke være negativ.');
+  if (!isNaN(h2) && !isNaN(h1) && h2 > h1)
+    fail('h2', 'Nedstrøms vannstand h₂ kan ikke overstige oppstrøms h₁ (fysisk umulig).');
+  if (isNaN(Re) || Re < 100)  fail('Re',  'Flytegrense Re må være ≥ 100 MPa.');
+  if (Re > 700)               warn('Flytegrense Re > 700 MPa – kontroller materialvalg.');
+  if (isNaN(G) || G < 0)     fail('G',   'Egenvekt G kan ikke være negativ.');
+
+  // Water level vs geometry
+  if (!isNaN(h1) && !isNaN(H_L) && h1 < H_L)
+    warn('Oppstrøms vannstand h₁ < lukehøyde H_L: luken er delvis eksponert – halvt trykk beregnes.');
+
+  // Minimum pressure difference check (NVE § 2.2)
+  if (!isNaN(h1) && !isNaN(h2)) {
+    const dh = h1 - h2;
+    const min_dh = Math.max(0.1 * h1, 10); // 10 % of max pressure or min 10 m
+    // Only warn if both sides have pressure
+    if (h2 > 0 && dh > 0 && dh < 10)
+      warn(`Trykkdifferanse Δh = ${dh.toFixed(2)} m < 10 m minstekrav (NVE § 2.2). Sett Δh ≥ maks(10 % av h₁, 10 m) = ${min_dh.toFixed(1)} m ved innbyrdes koblet trykk.`);
+  }
+
+  // High-pressure warnings (NVE C.4)
+  if (!isNaN(h1)) {
+    if (h1 > 40) warn('Trykkhøyde > 40 m: spesiell utforming av lukeblad, foringsnisjer og platekasse nødvendig (NVE C.4). Kavitasjon og vibrasjon må utredes.');
+    else if (h1 > 20) warn('Trykkhøyde > 20 m: lufting nedstrøms tappeluke må vurderes nøye (NVE C.1). Vurder spesialkompetanse for hydrauliske effekter.');
+  }
+
+  // Width vs height check (NVE C.4)
+  if (!isNaN(B) && !isNaN(H_L) && B > H_L)
+    warn('Lukebredde B > lukehøyde H_L: styreruller eller styreskinner bør vurderes (NVE C.4).');
+
+  // Store for use in calculation
+  state = {
+    B, H_L, z_UK, h1, h2, Re, G,
+    driftstilstand: document.getElementById('driftstilstand').value,
+    konsekvensklasse: parseInt(document.getElementById('konsekvensklasse').value),
+    funksjon: document.getElementById('funksjon').value,
+    glideliste: document.getElementById('glideliste').value,
+    grensetilstand: document.getElementById('grensetilstand').value,
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+//  CALCULATION ENGINE
+// ═══════════════════════════════════════════════════════
+function calculate() {
+  const { B, H_L, z_UK, h1, h2, Re, G,
+          funksjon, glideliste, grensetilstand, driftstilstand } = state;
+
+  const mu    = MU[glideliste];
+  const area  = B * H_L;   // m²
+
+  // ── Effective water depth above gate bottom (top of gate)
+  const h_top = h1 - H_L;   // may be < 0 if h1 < H_L
+
+  // ── Upstream pressure distribution ──────────────────────────
+  // Pressure at bottom of gate (kPa = kN/m²)
+  const p_UK1  = Math.max(0, h1)      * GAMMA_W;   // at underkant
+  const p_OK1  = Math.max(0, h_top)   * GAMMA_W;   // at overkant  (0 if partially submerged)
+
+  // ── Downstream pressure distribution ─────────────────────────
+  const p_UK2  = Math.max(0, h2)      * GAMMA_W;
+  const h2_top = h2 - H_L;
+  const p_OK2  = Math.max(0, h2_top)  * GAMMA_W;
+
+  // ── Net pressure at UK and OK ─────────────────────────────────
+  const p_net_UK = p_UK1 - p_UK2;   // kN/m²
+  const p_net_OK = p_OK1 - p_OK2;
+
+  // ── Resultant hydrostatic force (trapezoidal distribution) ────
+  // F = [(p_UK + p_OK)/2] * B * H_L  (kN)
+  const F_hyd = ((p_net_UK + p_net_OK) / 2) * B * H_L;
+
+  // ── Point of application (from bottom of gate) ───────────────
+  // For a trapezoid (p_OK at top, p_UK at bottom):
+  // e = H_L/3 * (2*p_UK + p_OK) / (p_UK + p_OK)   from bottom
+  let e_kp;
+  if (Math.abs(p_net_UK + p_net_OK) < 1e-9) {
+    e_kp = H_L / 2;
+  } else {
+    // Centroid of trapezoid from bottom: e = H * (2·p_top + p_bot) / (3·(p_bot + p_top))
+    e_kp = H_L * (2 * p_net_OK + p_net_UK) / (3 * (p_net_UK + p_net_OK));
+  }
+
+  // Also express as height above gate bottom in absolute terms
+  const e_abs = z_UK + e_kp;  // m above bottom datum
+
+  // ── Moment about gate bottom ──────────────────────────────────
+  const M_hyd = F_hyd * e_kp;  // kN·m
+
+  // ── Load factors ─────────────────────────────────────────────
+  let gamma_f;
+  if (grensetilstand === 'brudd') {
+    // Special rule: tappe-/flomorganer get f=1.4 (NVE § 2.5)
+    gamma_f = (funksjon === 'tappe' || funksjon === 'flom') ? LF.brudd.tappeluke : LF.brudd.statisk;
+  } else if (grensetilstand === 'ulykke') {
+    gamma_f = 1.0;
+  } else {
+    gamma_f = 1.0;
+  }
+
+  const F_dim   = gamma_f * F_hyd;
+  const M_dim   = gamma_f * M_hyd;
+
+  // ── Net area pressure (average) ───────────────────────────────
+  const p_avg = F_hyd > 0 ? F_hyd / area : 0;
+
+  // ── Manoeuvring forces ────────────────────────────────────────
+  // Friction force (both sides of gate, assumed symmetric):
+  const F_frict = mu * F_hyd;   // kN  (sliding resistance)
+
+  // Operating force to lift gate (against full water pressure):
+  //   F_op = G + F_frict  (pulling gate up)
+  //   Capacity factor ψ from NVE § 5.2 (applied to required capacity)
+  const psi     = funksjon === 'tappe' ? PSI.tappe : PSI.flom;
+  const F_lift  = G + F_frict;      // kN to lift
+  const F_lower = G - F_frict;      // kN to lower (may be negative = self-weight closes)
+
+  // Required capacity of actuator with spillage factor:
+  const F_actuator = F_lift * psi;
+
+  // Self-closing check (NVE § 5.2): resultant downward force > 25% of opposing forces
+  // Closing force = gravity component - friction when closing
+  const F_close_net = G - F_frict;   // net downward force
+  const selfClosing  = F_close_net > 0 && F_close_net > 0.25 * F_frict;
+
+  // ── Material capacity check ───────────────────────────────────
+  // Characteristic yield strength (NVE § 4.2): limit to 80% of Rm (approx), use Re directly
+  // Design yield strength = Re / gamma_m
+  const gamma_m = MF[grensetilstand]?.med ?? 1.25;
+  const f_yd    = (Re * 0.8) / gamma_m;   // MPa (80% of Re as per NVE § 4.2)
+
+  // Approximate hoop/bending stress on face plate (simplified, indicative only)
+  // For a plate span B, uniform pressure p_avg, simply supported: sigma = p_avg*B²/(8*t_est²) (MPa)
+  // We cannot compute without plate thickness – provide p_avg for user's cross-section check
+
+  // ── Minimum sealing pressure check ───────────────────────────
+  // NVE § 5.2: flat rubber seal → min 5 kN/m sealing length
+  const tettelengde = 2 * (B + H_L);   // perimeter (m)
+  const F_seal_req  = 5 * tettelengde;  // kN
+
+  // ── Summary ──────────────────────────────────────────────────
+  results = {
+    // Geometry
+    area, h_top,
+    // Pressures
+    p_UK1, p_OK1, p_UK2, p_OK2, p_net_UK, p_net_OK, p_avg,
+    // Hydrostatic resultant
+    F_hyd, M_hyd, e_kp, e_abs,
+    // Dimensioning
+    gamma_f, F_dim, M_dim,
+    // Manoeuvring
+    mu, F_frict, F_lift, F_lower, psi, F_actuator, selfClosing,
+    // Material
+    gamma_m, f_yd,
+    // Sealing
+    tettelengde, F_seal_req,
+    // Misc
+    GAMMA_W,
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════
+function render() {
+  renderMessages();
+  renderStatusBar();
+  if (errors.length === 0) {
+    renderResultCards();
+    renderTraceTable();
+    renderFigure();
+    renderCheck();
+  } else {
+    // Clear result areas
+    ['hydro-cards','dim-cards','mano-cards','traceContent','checkContent',
+     'capacityContent','warningsContent'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<p style="color:#94a3b8;font-size:12px;padding:8px">Rett feil i inndata for å se resultater.</p>';
+    });
+    const canvas = document.getElementById('lukeCanvas');
+    if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); }
+  }
+}
+
+function renderMessages() {
+  const area = document.getElementById('msgArea');
+  let html = '';
+  errors.forEach(e => {
+    html += `<div class="msg msg-err"><span class="icon">❌</span><span><strong>Feil:</strong> ${e.msg}</span></div>`;
+  });
+  warnings.forEach(w => {
+    html += `<div class="msg msg-warn"><span class="icon">⚠️</span><span><strong>Advarsel:</strong> ${w}</span></div>`;
+  });
+  if (errors.length === 0 && warnings.length === 0) {
+    html = '<div class="msg msg-ok"><span class="icon">✅</span><span>Inndata validert – alle kontroller OK.</span></div>';
+  }
+  area.innerHTML = html;
+}
+
+function renderStatusBar() {
+  const dot = document.getElementById('dot-input');
+  const sbH = document.getElementById('sb-h');
+  const sbF = document.getElementById('sb-F');
+  const sbM = document.getElementById('sb-M');
+
+  if (errors.length > 0) {
+    dot.className = 'dot dot-red';
+    dot.nextSibling && (dot.parentElement.childNodes[1].textContent = ' Feil i inndata');
+    sbH.textContent = 'h = – m';
+    sbF.textContent = 'F_res = – kN';
+    sbM.textContent = 'Angrepspunkt = – m';
+    return;
+  }
+  dot.className = warnings.length > 0 ? 'dot dot-yellow' : 'dot dot-green';
+  dot.parentElement.childNodes[1].textContent = warnings.length > 0 ? ` ${warnings.length} advarsel(er)` : ' Inndata OK';
+  sbH.textContent = `Δh = ${(state.h1 - state.h2).toFixed(2)} m`;
+  sbF.textContent = `F_res = ${results.F_hyd ? results.F_hyd.toFixed(1) : '–'} kN`;
+  sbM.textContent = `Angrepspunkt = ${results.e_kp ? results.e_kp.toFixed(3) : '–'} m over UK`;
+}
+
+function renderResultCards() {
+  const r = results;
+  const s = state;
+
+  // ── Hydrostatic cards ──
+  document.getElementById('hydro-cards').innerHTML = `
+    ${card('Trykk ved underkant (oppstr.)', fmt(r.p_UK1,2), 'kN/m²', 'p_UK,1 = γ·h₁', false)}
+    ${card('Trykk ved overkant (oppstr.)', fmt(r.p_OK1,2), 'kN/m²', 'p_OK,1 = γ·max(h₁–H_L,0)', false)}
+    ${card('Netto trykk ved UK', fmt(r.p_net_UK,2), 'kN/m²', 'p_net_UK = p_UK,1 – p_UK,2', false)}
+    ${card('Netto trykk ved OK', fmt(r.p_net_OK,2), 'kN/m²', 'p_net_OK = p_OK,1 – p_OK,2', false)}
+    ${card('Hydrostatisk resultant', fmt(r.F_hyd,2), 'kN', 'F_hyd (trapesfordeling)', true)}
+    ${card('Angrepspunkt over UK', fmt(r.e_kp,3), 'm', 'e = H·(2p_OK+p_UK)/[3(p_UK+p_OK)]', true)}
+    ${card('Moment om underkant', fmt(r.M_hyd,2), 'kN·m', 'M = F_hyd × e', false)}
+    ${card('Middeltrykk', fmt(r.p_avg,2), 'kN/m²', 'p_avg = F_hyd / (B×H_L)', false)}
+  `;
+
+  // ── Dimensioning cards ──
+  const lf_label = s.funksjon === 'tappe' ? `γ_f = ${r.gamma_f} (tappeluke, NVE §2.5)` : `γ_f = ${r.gamma_f} (NVE Tabell 2.1)`;
+  document.getElementById('dim-cards').innerHTML = `
+    ${card('Lastfaktor γ_f', fmt(r.gamma_f,1), '–', lf_label, false)}
+    ${card('Dim. kraft F_dim', fmt(r.F_dim,2), 'kN', 'F_dim = γ_f × F_hyd', true)}
+    ${card('Dim. moment M_dim', fmt(r.M_dim,2), 'kN·m', 'M_dim = γ_f × M_hyd', false)}
+  `;
+
+  // ── Manoeuvring cards ──
+  const selfClsText = r.selfClosing ? '✅ Ja' : '❌ Nei';
+  const selfClsCls  = r.selfClosing ? '' : 'warning-card';
+  document.getElementById('mano-cards').innerHTML = `
+    ${card('Friksjonsfaktor μ', fmt(r.mu,2), '–', 'NVE Tabell 5.1 (minimumsverdi)', false)}
+    ${card('Friksjonskraft', fmt(r.F_frict,2), 'kN', 'F_frict = μ × F_hyd', false)}
+    ${card('Nødvendig løftekraft', fmt(r.F_lift,2), 'kN', 'F_lift = G + F_frict', true)}
+    ${card('Aktuator-kapasitet (med ψ)', fmt(r.F_actuator,2), 'kN', `ψ = ${r.psi} (NVE §5.2, ${s.funksjon})`, true)}
+    ${card('Senkekraft (netto)', fmt(r.F_lower,2), 'kN', 'F_lower = G – F_frict', false)}
+    ${cardRaw('Selvlukkende?', selfClsText, '', 'Netto lukkekraft > 25% av motkrefter (NVE §5.2)', selfClsCls)}
+    ${card('Tettelengde (perimiter)', fmt(r.tettelengde,2), 'm', '2×(B + H_L)', false)}
+    ${card('Min. tetningskraft (flatgummi)', fmt(r.F_seal_req,1), 'kN', '5 kN/m × tettelengde (NVE §5.2)', false)}
+  `;
+}
+
+function card(label, value, unit, sub, highlight) {
+  const cls = highlight ? 'result-card highlight' : 'result-card';
+  return `<div class="${cls}">
+    <div class="label">${label}</div>
+    <div class="value">${value} <small style="font-size:12px;font-weight:400">${unit}</small></div>
+    <div class="sub">${sub}</div>
+  </div>`;
+}
+function cardRaw(label, value, unit, sub, extraCls) {
+  return `<div class="result-card ${extraCls}">
+    <div class="label">${label}</div>
+    <div class="value">${value}</div>
+    <div class="sub">${sub}</div>
+  </div>`;
+}
+function fmt(v, dec) { return (v !== undefined && v !== null && !isNaN(v)) ? v.toFixed(dec) : '–'; }
+
+function renderTraceTable() {
+  const r = results;
+  const s = state;
+
+  const rows = [
+    {
+      step: '1', name: 'Trykk ved underkant luke (oppstrøms)',
+      formula: 'p_UK,1 = γ_w · h₁',
+      values: `γ_w = ${GAMMA_W} kN/m³, h₁ = ${s.h1} m`,
+      result: `p_UK,1 = ${fmt(r.p_UK1,3)} kN/m²`,
+      ref: 'NVE §2.2, Tabell 2.1'
+    },
+    {
+      step: '2', name: 'Trykk ved overkant luke (oppstrøms)',
+      formula: 'p_OK,1 = γ_w · max(h₁ – H_L, 0)',
+      values: `h₁ = ${s.h1} m, H_L = ${s.H_L} m → h_top = ${fmt(r.h_top,3)} m`,
+      result: `p_OK,1 = ${fmt(r.p_OK1,3)} kN/m²`,
+      ref: 'NVE §2.2'
+    },
+    {
+      step: '3', name: 'Trykk nedstrøms (UK og OK)',
+      formula: 'p_UK,2 = γ_w · h₂ ; p_OK,2 = γ_w · max(h₂ – H_L, 0)',
+      values: `h₂ = ${s.h2} m`,
+      result: `p_UK,2 = ${fmt(r.p_UK2,3)} kN/m²,  p_OK,2 = ${fmt(r.p_OK2,3)} kN/m²`,
+      ref: 'NVE §2.2'
+    },
+    {
+      step: '4', name: 'Netto trykkfordeling',
+      formula: 'p_net = p_1 – p_2  (UK og OK)',
+      values: '',
+      result: `p_net,UK = ${fmt(r.p_net_UK,3)} kN/m²,  p_net,OK = ${fmt(r.p_net_OK,3)} kN/m²`,
+      ref: 'NVE §2.2'
+    },
+    {
+      step: '5', name: 'Hydrostatisk resultantkraft (trapesfordeling)',
+      formula: 'F_hyd = [(p_net,UK + p_net,OK) / 2] · B · H_L',
+      values: `B = ${s.B} m, H_L = ${s.H_L} m`,
+      result: `F_hyd = ${fmt(r.F_hyd,3)} kN`,
+      ref: 'Hydrostatikk (standard formel)'
+    },
+    {
+      step: '6', name: 'Angrepspunkt for resultant (over underkant)',
+      formula: 'e = H_L · (2·p_net,OK + p_net,UK) / [3·(p_net,UK + p_net,OK)]',
+      values: '',
+      result: `e = ${fmt(r.e_kp,4)} m over underkant luke`,
+      ref: 'Massesenter trapesfordeling'
+    },
+    {
+      step: '7', name: 'Moment om underkant luke',
+      formula: 'M_hyd = F_hyd · e',
+      values: '',
+      result: `M_hyd = ${fmt(r.M_hyd,3)} kN·m`,
+      ref: 'Statikk'
+    },
+    {
+      step: '8', name: 'Lastfaktor (grensetilstand)',
+      formula: s.funksjon === 'tappe'
+        ? 'γ_f = 1,4  (tappe-/flomluke, bruddgrense – NVE spesialregel §2.5)'
+        : 'γ_f = 1,2  (standard permanent last, NVE Tabell 2.1)',
+      values: `Grensetilstand: ${s.grensetilstand}, funksjon: ${s.funksjon}`,
+      result: `γ_f = ${fmt(r.gamma_f,1)}`,
+      ref: 'NVE 1/2011 §2.5, Tabell 2.1'
+    },
+    {
+      step: '9', name: 'Dimensjonerende kraft',
+      formula: 'F_dim = γ_f · F_hyd',
+      values: '',
+      result: `F_dim = ${fmt(r.F_dim,3)} kN`,
+      ref: 'NVE 1/2011 §2.5'
+    },
+    {
+      step: '10', name: 'Friksjonskraft (glidelister)',
+      formula: 'F_frict = μ · F_hyd',
+      values: `μ = ${r.mu} (${s.glideliste}, NVE Tabell 5.1 minimumsverdi)`,
+      result: `F_frict = ${fmt(r.F_frict,3)} kN`,
+      ref: 'NVE 1/2011 §5.2, Tabell 5.1'
+    },
+    {
+      step: '11', name: 'Nødvendig løftekraft',
+      formula: 'F_lift = G + F_frict',
+      values: `G = ${s.G} kN (egenvekt), F_frict = ${fmt(r.F_frict,2)} kN`,
+      result: `F_lift = ${fmt(r.F_lift,3)} kN`,
+      ref: 'NVE 1/2011 §5.2'
+    },
+    {
+      step: '12', name: 'Nødvendig aktuatorkapasitet (med paslagsfaktor)',
+      formula: 'F_akt = ψ · F_lift',
+      values: `ψ = ${r.psi} (NVE §5.2, ${s.funksjon}luke)`,
+      result: `F_akt = ${fmt(r.F_actuator,3)} kN`,
+      ref: 'NVE 1/2011 §5.2'
+    },
+    {
+      step: '13', name: 'Dimensjonerende flytegrense (stål)',
+      formula: 'f_yd = (R_e · 0,8) / γ_m  [NVE §4.2: begrenset til 80% av Rm]',
+      values: `R_e = ${s.Re} MPa, γ_m = ${r.gamma_m} (med plastisitetsreserve, NVE Tabell 4.1)`,
+      result: `f_yd = ${fmt(r.f_yd,1)} MPa`,
+      ref: 'NVE 1/2011 §4.2, Tabell 4.1'
+    },
+  ];
+
+  let html = `<table class="trace-table">
+    <thead><tr><th>#</th><th>Beregningstrinn</th><th>Formel</th><th>Verdier</th><th>Resultat</th><th>Referanse</th></tr></thead><tbody>`;
+  rows.forEach(r => {
+    html += `<tr>
+      <td>${r.step}</td>
+      <td>${r.name}</td>
+      <td class="formula">${r.formula}</td>
+      <td>${r.values}</td>
+      <td class="num">${r.result}</td>
+      <td class="ref">${r.ref}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('traceContent').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════
+//  FIGURE – Canvas drawing
+// ═══════════════════════════════════════════════════════
+function renderFigure() {
+  const canvas = document.getElementById('lukeCanvas');
+  const ctx    = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const s = state;
+  const r = results;
+
+  // Layout constants
+  const margin = { left: 80, right: 160, top: 30, bottom: 50 };
+  const gateX  = W / 2 - 20;
+  const drawH  = H - margin.top - margin.bottom;
+  const drawW  = W - margin.left - margin.right;
+
+  // Determine scale: fit both h1 and H_L
+  const maxH   = Math.max(s.h1 + 1, s.H_L + 1);
+  const scale  = drawH / maxH;   // px per meter
+
+  // Y coordinates (canvas: y increases downward; 0 = top of drawing area)
+  const originY = H - margin.bottom;  // bottom datum (y=0 in water column)
+
+  function toY(h) { return originY - h * scale; }
+
+  const gateW  = 60;  // gate visual width in px
+  const gateL  = gateX - gateW / 2;
+  const gateR  = gateX + gateW / 2;
+
+  const y_UK   = toY(0);           // bottom of gate
+  const y_OK   = toY(s.H_L);      // top of gate
+  const y_h1   = toY(s.h1);       // upstream water surface
+  const y_h2   = toY(s.h2);       // downstream water surface (if any)
+
+  // ── Background ────────────────────────────────────────────────
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Wall/channel background ───────────────────────────────────
+  // Upstream water (left of gate)
+  if (s.h1 > 0) {
+    const grad = ctx.createLinearGradient(0, y_h1, 0, y_UK);
+    grad.addColorStop(0, 'rgba(37,99,200,0.08)');
+    grad.addColorStop(1, 'rgba(37,99,200,0.22)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(margin.left, y_h1, gateL - margin.left, y_UK - y_h1);
+  }
+
+  // Downstream water (right of gate)
+  if (s.h2 > 0) {
+    const y_h2d = toY(s.h2);
+    const grad2 = ctx.createLinearGradient(0, y_h2d, 0, y_UK);
+    grad2.addColorStop(0, 'rgba(37,99,200,0.06)');
+    grad2.addColorStop(1, 'rgba(37,99,200,0.15)');
+    ctx.fillStyle = grad2;
+    ctx.fillRect(gateR, y_h2d, W - margin.right - gateR, y_UK - y_h2d);
+  }
+
+  // Channel floor / bottom
+  ctx.fillStyle = '#d1d5db';
+  ctx.fillRect(margin.left, y_UK, W - margin.left - margin.right, 8);
+
+  // ── Wall lines ────────────────────────────────────────────────
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([]);
+  // Left wall
+  ctx.beginPath(); ctx.moveTo(margin.left, margin.top); ctx.lineTo(margin.left, y_UK); ctx.stroke();
+  // Right wall
+  ctx.beginPath(); ctx.moveTo(W - margin.right, margin.top); ctx.lineTo(W - margin.right, y_UK); ctx.stroke();
+
+  // ── Gate body ─────────────────────────────────────────────────
+  const gateGrad = ctx.createLinearGradient(gateL, 0, gateR, 0);
+  gateGrad.addColorStop(0,   '#475569');
+  gateGrad.addColorStop(0.3, '#94a3b8');
+  gateGrad.addColorStop(0.7, '#94a3b8');
+  gateGrad.addColorStop(1,   '#475569');
+  ctx.fillStyle = gateGrad;
+  ctx.fillRect(gateL, y_OK, gateW, y_UK - y_OK);
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(gateL, y_OK, gateW, y_UK - y_OK);
+
+  // Hatching on gate
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 0.5;
+  for (let yy = y_OK + 10; yy < y_UK; yy += 12) {
+    ctx.beginPath(); ctx.moveTo(gateL + 4, yy); ctx.lineTo(gateR - 4, yy); ctx.stroke();
+  }
+
+  // ── Water surface lines ───────────────────────────────────────
+  ctx.strokeStyle = '#2563a8';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6,3]);
+
+  // Upstream surface
+  ctx.beginPath(); ctx.moveTo(margin.left, y_h1); ctx.lineTo(gateL, y_h1); ctx.stroke();
+  // Downstream surface
+  if (s.h2 > 0) {
+    ctx.beginPath(); ctx.moveTo(gateR, y_h2); ctx.lineTo(W - margin.right, y_h2); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // ── Pressure diagram (upstream, trapezoidal) ──────────────────
+  const pScale  = gateL - margin.left - 10;   // max width of pressure arrow area
+  const pMaxVal = Math.max(r.p_UK1, r.p_net_UK, 1);
+  const pW_UK   = (r.p_net_UK / pMaxVal) * pScale * 0.7;
+  const pW_OK   = (r.p_net_OK / pMaxVal) * pScale * 0.7;
+
+  // Draw pressure trapezoid (filled)
+  if (r.F_hyd > 0.01) {
+    const px_UK  = gateL - pW_UK;
+    const px_OK  = gateL - pW_OK;
+    ctx.fillStyle = 'rgba(37,99,200,0.18)';
+    ctx.beginPath();
+    ctx.moveTo(gateL, y_UK);
+    ctx.lineTo(px_UK, y_UK);
+    ctx.lineTo(px_OK, y_OK);
+    ctx.lineTo(gateL, y_OK);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = '#2563a8';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(gateL, y_UK); ctx.lineTo(px_UK, y_UK);
+    ctx.moveTo(gateL, y_OK); ctx.lineTo(px_OK, y_OK);
+    ctx.moveTo(px_UK, y_UK); ctx.lineTo(px_OK, y_OK);
+    ctx.stroke();
+
+    // Arrows along pressure face
+    const nArrows = 5;
+    for (let i = 0; i <= nArrows; i++) {
+      const frac = i / nArrows;
+      const yArrow  = y_OK + (y_UK - y_OK) * frac;
+      const pAtY    = r.p_net_OK + (r.p_net_UK - r.p_net_OK) * frac;
+      const pW_here = (pAtY / pMaxVal) * pScale * 0.7;
+      const xStart  = gateL - pW_here;
+      drawArrow(ctx, xStart, yArrow, gateL, yArrow, '#2563a8');
+    }
+
+    // Resultant force arrow
+    const y_res = toY(r.e_kp);
+    const rLen  = 45;
+    ctx.strokeStyle = '#e07b00';
+    ctx.lineWidth = 2.5;
+    drawArrow(ctx, gateL - rLen - 10, y_res, gateL + 5, y_res, '#e07b00');
+
+    // F_hyd label
+    ctx.fillStyle = '#e07b00';
+    ctx.font = 'bold 11px Segoe UI';
+    ctx.textAlign = 'left';
+    ctx.fillText(`F = ${r.F_hyd.toFixed(1)} kN`, gateR + 8, y_res + 4);
+
+    // Angrepspunkt dotted line
+    ctx.setLineDash([3,3]);
+    ctx.strokeStyle = '#e07b00';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(gateL, y_res);
+    ctx.lineTo(gateR + 60, y_res);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // e label
+    ctx.fillStyle = '#e07b00';
+    ctx.font = '10px Consolas';
+    ctx.fillText(`e = ${r.e_kp.toFixed(3)} m`, gateR + 8, y_res + 16);
+  }
+
+  // ── Pressure labels ───────────────────────────────────────────
+  ctx.fillStyle = '#2563a8';
+  ctx.font = '10px Consolas';
+  ctx.textAlign = 'right';
+  ctx.fillText(`p_UK = ${r.p_net_UK.toFixed(1)} kN/m²`, gateL - 4, y_UK - 4);
+  ctx.fillText(`p_OK = ${r.p_net_OK.toFixed(1)} kN/m²`, gateL - 4, y_OK + 12);
+
+  // ── Water level labels ────────────────────────────────────────
+  ctx.fillStyle = '#1a3a5c';
+  ctx.font = 'bold 11px Segoe UI';
+  ctx.textAlign = 'left';
+  ctx.fillText(`h₁ = ${s.h1} m  (HRV)`, margin.left + 4, y_h1 - 5);
+  if (s.h2 > 0) {
+    ctx.fillText(`h₂ = ${s.h2} m`, gateR + 6, y_h2 - 5);
+  }
+
+  // ── Dimension lines ───────────────────────────────────────────
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 1;
+  // H_L dimension (right of gate)
+  const dimX = gateR + 10;
+  ctx.beginPath();
+  ctx.moveTo(dimX, y_OK); ctx.lineTo(dimX, y_UK);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(dimX - 4, y_OK); ctx.lineTo(dimX + 4, y_OK);
+  ctx.moveTo(dimX - 4, y_UK); ctx.lineTo(dimX + 4, y_UK);
+  ctx.stroke();
+  ctx.fillStyle = '#475569';
+  ctx.font = '10px Consolas';
+  ctx.textAlign = 'left';
+  ctx.fillText(`H_L=${s.H_L}m`, dimX + 6, (y_OK + y_UK) / 2 + 4);
+
+  // B dimension (below gate)
+  const dimY = y_UK + 20;
+  ctx.beginPath();
+  ctx.moveTo(gateL, dimY); ctx.lineTo(gateR, dimY); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(gateL, dimY - 4); ctx.lineTo(gateL, dimY + 4);
+  ctx.moveTo(gateR, dimY - 4); ctx.lineTo(gateR, dimY + 4);
+  ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.fillText(`B=${s.B}m`, gateX, dimY + 12);
+
+  // ── Gate label ────────────────────────────────────────────────
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 11px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText('GLIDELUKE', gateX, (y_OK + y_UK) / 2 + 4);
+
+  // ── Axes / scale ──────────────────────────────────────────────
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1;
+  const axX = margin.left - 20;
+  ctx.beginPath();
+  ctx.moveTo(axX, margin.top); ctx.lineTo(axX, y_UK); ctx.stroke();
+  // Tick marks and labels
+  const tickStep = maxH > 20 ? 5 : maxH > 10 ? 2 : 1;
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '9px Consolas';
+  ctx.textAlign = 'right';
+  for (let h = 0; h <= maxH; h += tickStep) {
+    const ty = toY(h);
+    ctx.beginPath(); ctx.moveTo(axX - 4, ty); ctx.lineTo(axX, ty); ctx.stroke();
+    ctx.fillText(`${h}m`, axX - 6, ty + 3);
+  }
+
+  // ── Caption ───────────────────────────────────────────────────
+  document.getElementById('figCaption').textContent =
+    `Glideluke: B=${s.h1} m vannstand, netto hydrostatisk kraft F_hyd = ${r.F_hyd.toFixed(1)} kN, ` +
+    `angrepspunkt e = ${r.e_kp.toFixed(3)} m over underkant`;
+}
+
+function drawArrow(ctx, x1, y1, x2, y2, color) {
+  const headLen = 7;
+  const angle   = Math.atan2(y2 - y1, x2 - x1);
+  ctx.strokeStyle = color;
+  ctx.fillStyle   = color;
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - headLen * Math.cos(angle - 0.4), y2 - headLen * Math.sin(angle - 0.4));
+  ctx.lineTo(x2 - headLen * Math.cos(angle + 0.4), y2 - headLen * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ═══════════════════════════════════════════════════════
+//  CHECK TAB
+// ═══════════════════════════════════════════════════════
+function renderCheck() {
+  const r = results;
+  const s = state;
+
+  // ── Validity / prerequisites ──────────────────────────────────
+  const checks = [
+    {
+      ok: s.h1 <= 300,
+      label: 'Trykkhøyde innenfor vanlig område',
+      detail: `h₁ = ${s.h1} m ≤ 300 m`,
+      ref: '',
+    },
+    {
+      ok: s.B <= 30 && s.H_L <= 30,
+      label: 'Lukedimensjoner innenfor vanlig område',
+      detail: `B = ${s.B} m, H_L = ${s.H_L} m`,
+      ref: '',
+    },
+    {
+      ok: s.h1 <= 20 || true,  // just informational
+      label: s.h1 <= 20 ? 'Trykk ≤ 20 m: kavitasjon/vibrasjon normalt uproblematisk'
+                        : (s.h1 <= 40 ? 'Trykk 20–40 m: luft nedstrøms må vurderes' : 'Trykk > 40 m: spesiell utforming NØDVENDIG'),
+      detail: `h₁ = ${s.h1} m (NVE C.4: > 20 m krever vurdering, > 40 m spesialkrav)`,
+      ref: 'NVE 1/2011 C.4',
+      warn: s.h1 > 20 && s.h1 <= 40,
+      fail: s.h1 > 40,
+    },
+    {
+      ok: r.p_net_UK >= 0,
+      label: 'Netto trykk positivt (oppstrøms > nedstrøms)',
+      detail: `p_net,UK = ${fmt(r.p_net_UK,2)} kN/m²`,
+      ref: 'NVE §2.2',
+    },
+    {
+      ok: s.funksjon !== 'tappe' || r.gamma_f === 1.4,
+      label: 'Lastfaktor 1,4 anvendt for tappeluke (NVE spesialregel)',
+      detail: `γ_f = ${r.gamma_f} (${s.grensetilstand})`,
+      ref: 'NVE 1/2011 §2.5',
+    },
+    {
+      ok: true,
+      label: `Glidelistmateriale: ${s.glideliste} – μ = ${r.mu}`,
+      detail: `NVE minimumsverdier for friksjonsfaktor (Tabell 5.1)`,
+      ref: 'NVE 1/2011 §5.2, Tabell 5.1',
+    },
+    {
+      ok: r.selfClosing,
+      warn: !r.selfClosing,
+      label: r.selfClosing
+        ? 'Luken er selvlukkende (netto lukkekraft > 25 % av motkrefter)'
+        : 'Luken er IKKE selvlukkende – manøvreringskraft til lukking nødvendig',
+      detail: `F_lower = ${fmt(r.F_lower,2)} kN`,
+      ref: 'NVE 1/2011 §5.2',
+    },
+  ];
+
+  let html = '';
+  checks.forEach(c => {
+    const icon  = c.fail ? '❌' : (c.warn ? '⚠️' : '✅');
+    const cls   = c.fail ? 'msg-err' : (c.warn ? 'msg-warn' : 'msg-ok');
+    html += `<div class="msg ${cls}">
+      <span class="icon">${icon}</span>
+      <span><strong>${c.label}</strong><br>
+        <span style="font-size:11px">${c.detail}</span>
+        ${c.ref ? `<span class="ref-badge">${c.ref}</span>` : ''}
+      </span>
+    </div>`;
+  });
+  document.getElementById('checkContent').innerHTML = html;
+
+  // ── Capacity hint (simplified) ────────────────────────────────
+  const capHtml = `
+    <div class="msg msg-ok">
+      <span class="icon">ℹ️</span>
+      <span>
+        <strong>Dimensjonerende flytegrense stål:</strong>
+        f_yd = (R_e × 0,8) / γ_m = (${s.Re} × 0,8) / ${r.gamma_m} = <strong>${fmt(r.f_yd,1)} MPa</strong>
+        <span class="ref-badge">NVE §4.2 + Tabell 4.1</span><br>
+        <span style="font-size:11px">
+          Kapasitetskontroll av platekasse, bjelker og forbindelser gjøres mot
+          dimensjonerende kraft F_dim = ${fmt(r.F_dim,2)} kN og moment M_dim = ${fmt(r.M_dim,2)} kN·m.
+          Korrosjonstillegg: trekk fra 1 mm per korrosjonsutsatt flate (NVE §4.2).
+        </span>
+      </span>
+    </div>
+    <div class="msg msg-ok">
+      <span class="icon">ℹ️</span>
+      <span>
+        <strong>Flatetrykk for glidelister</strong> (NVE §5.2):<br>
+        <span style="font-size:11px">
+          • Bronseglideliste mot rustfritt stål: maks 14,0 MPa<br>
+          • Polyamidglideliste mot rustfritt stål: maks 10,0 MPa<br>
+          • Innstøpt stål mot betong: skjær ≤ 0,5 MPa, trykk ≤ 15,0 MPa
+        </span>
+      </span>
+    </div>
+  `;
+  document.getElementById('capacityContent').innerHTML = capHtml;
+
+  // ── Warnings content ──────────────────────────────────────────
+  let warnHtml = '';
+  if (warnings.length === 0) {
+    warnHtml = '<div class="msg msg-ok"><span class="icon">✅</span><span>Ingen spesielle advarsler.</span></div>';
+  } else {
+    warnings.forEach(w => {
+      warnHtml += `<div class="msg msg-warn"><span class="icon">⚠️</span><span>${w}</span></div>`;
+    });
+  }
+  // Always add standard notes
+  warnHtml += `
+    <div class="msg msg-warn">
+      <span class="icon">📋</span>
+      <span>
+        <strong>Gyldighetsområde for dette verktøyet:</strong><br>
+        <span style="font-size:11px">
+          Beregningsverktøyet dekker hydrostatisk kraftberegning og manøvreringskrefter for
+          rektangulære glideluker med uniform bredde. Det forutsetter stasjonær tilstand (ikke hydrodynamiske
+          trykk fra strømmende vann). Dynamiske laster, vibrasjon, kavitasjon, luftingsbehov og strukturdimensjonering
+          (platetykkelse, bjelkekonstruksjon) er brukerens ansvar og må beregnes separat.
+          Utmatting skal kontrolleres iht. NVE Vedlegg B for luker med mange belastningsvekslinger.
+        </span>
+        <span class="ref-badge">NVE 1/2011 C.1, C.4, Vedlegg B</span>
+      </span>
+    </div>
+    <div class="msg msg-warn">
+      <span class="icon">📋</span>
+      <span>
+        <strong>Lufting nedstrøms:</strong><br>
+        <span style="font-size:11px">
+          Behov for lufttilførsel nedstrøms tappeluke skal alltid vurderes (NVE §5.1).
+          For trykkdifferanse &gt; 20 m gjelder spesielle krav til luftearrangement (NVE C.1).
+          Lufthastighet i lufterør maks ca. 50 m/s.
+        </span>
+      </span>
+    </div>
+  `;
+  document.getElementById('warningsContent').innerHTML = warnHtml;
+}
+
+// ═══════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════════════
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'figure' && errors.length === 0) renderFigure();
+}
+
+// ═══════════════════════════════════════════════════════
+//  INITIAL CALCULATION
+// ═══════════════════════════════════════════════════════
+onInputChange();
+</script>
+</body>
+</html>
