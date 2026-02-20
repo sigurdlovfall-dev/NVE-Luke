@@ -554,7 +554,8 @@
             <input type="text" id="rpt-dokref" placeholder="F.eks. STA-2025-001" style="width:140px;">
           </div>
           <div style="margin-left:auto;display:flex;gap:8px;">
-            <button onclick="exportWord()" style="background:#1a3a5c;color:white;border:none;border-radius:5px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;">⬇ Last ned Word (.doc)</button>
+            <button onclick="exportWord()" style="background:#1a3a5c;color:white;border:none;border-radius:5px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;">⬇ Word (.doc)</button>
+            <button onclick="exportPDF()"  style="background:#dc2626;color:white;border:none;border-radius:5px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;">⬇ PDF</button>
             <button onclick="previewReport()" style="background:#e2e8f0;color:#334155;border:none;border-radius:5px;padding:9px 14px;font-size:13px;cursor:pointer;">👁 Forhåndsvis</button>
           </div>
         </div>
@@ -1838,20 +1839,70 @@ function previewReport() {
 }
 
 function exportWord() {
-  if (errors.length > 0) {
-    alert('Rett feil i inndata før rapport eksporteres.');
-    return;
-  }
+  if (errors.length > 0) { alert('Rett feil i inndata før rapport eksporteres.'); return; }
   const html = buildReportHTML(true);
   const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   const prosjekt = document.getElementById('rpt-prosjekt').value.replace(/[^a-zA-Z0-9æøåÆØÅ\-_]/g,'_') || 'Glideluke';
   const dato = new Date().toISOString().slice(0,10);
-  a.href     = url;
-  a.download = `Beregningsrapport_${prosjekt}_${dato}.doc`;
-  a.click();
-  URL.revokeObjectURL(url);
+  a.href = url; a.download = `Beregningsrapport_${prosjekt}_${dato}.doc`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function exportPDF() {
+  if (errors.length > 0) { alert('Rett feil i inndata før rapport eksporteres.'); return; }
+
+  const prosjekt = document.getElementById('rpt-prosjekt').value || 'Glideluke';
+  const dato     = new Date().toISOString().slice(0,10);
+
+  // Build report HTML, then inject extra print-optimised CSS before </head>
+  let html = buildReportHTML(true);
+  const printCSS = `
+<style>
+  @media print {
+    @page { size: A4 portrait; margin: 2cm 2.2cm 2.2cm 2.2cm; }
+    body  { font-size: 10.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    h1    { font-size: 16pt; }
+    h2    { font-size: 12pt; page-break-after: avoid; }
+    h3    { font-size: 11pt; page-break-after: avoid; }
+    table { page-break-inside: avoid; font-size: 9.5pt; }
+    tr    { page-break-inside: avoid; }
+    .page-break { page-break-before: always; }
+    .figure-box img { max-width: 15cm; }
+    .footer-line { position: fixed; bottom: 0; width: 100%; font-size: 8pt; }
+    /* Force background colours to print */
+    th          { background: #1a3a5c !important; color: white !important; }
+    .highlight  { background: #dbeafe !important; }
+    .warn       { background: #fef3c7 !important; }
+    .ok         { background: #dcfce7 !important; }
+    tr:nth-child(even) td { background: #f8fafc !important; }
+    .note       { background: #f0f4f8 !important; border-left: 3pt solid #2563a8 !important; }
+  }
+  /* Header/footer via running elements */
+  @page {
+    @top-center   { content: "${prosjekt} – Beregningsrapport glideluke"; font-size: 8pt; color: #64748b; }
+    @bottom-right { content: "Side " counter(page) " av " counter(pages); font-size: 8pt; color: #64748b; }
+    @bottom-left  { content: "${dato}"; font-size: 8pt; color: #64748b; }
+  }
+</style>`;
+  html = html.replace('</head>', printCSS + '</head>');
+
+  // Open in new window and trigger print dialog
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+
+  // Wait for images to load before printing
+  win.onload = () => {
+    setTimeout(() => {
+      win.focus();
+      win.print();
+      // Close window after print dialog closes (small delay)
+      setTimeout(() => win.close(), 1000);
+    }, 600);
+  };
 }
 </script>
 </body>
